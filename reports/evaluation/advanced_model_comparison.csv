@@ -1,0 +1,11 @@
+model_name,accuracy,balanced_accuracy,macro_f1,fatal_recall,fatal_f1,train_time_sec
+LightGBM (unweighted),0.5389,0.3345,0.2644,0.0022,0.0043,2.59
+Logistic Regression (unweighted),0.5516,0.3338,0.238,0.0,0.0,0.83
+Random Forest (unweighted),0.5511,0.3337,0.239,0.0,0.0,0.72
+HistGradientBoosting,0.5506,0.3332,0.2378,0.0,0.0,3.03
+Extra Trees (unweighted),0.5492,0.3327,0.2389,0.0,0.0,0.77
+LightGBM (balanced),0.3768,0.3327,0.328,0.2,0.1675,2.11
+Logistic Regression (balanced),0.329,0.3319,0.31,0.3427,0.2104,0.66
+XGBoost (unweighted),0.5158,0.329,0.2789,0.0065,0.0122,2.4
+Random Forest (balanced),0.4846,0.3264,0.3,0.0227,0.0385,0.73
+Extra Trees (balanced),0.438,0.3249,0.3207,0.0962,0.1156,0.89

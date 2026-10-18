@@ -64,7 +64,8 @@ class SeverityPredictor:
 
     def validate_and_prepare_input(
         self,
-        input_data: Union[Dict[str, Any], pd.DataFrame]
+        input_data: Union[Dict[str, Any], pd.DataFrame],
+        raise_on_leakage: bool = False
     ) -> pd.DataFrame:
         """Validate input payload and format into expected DataFrame."""
         if isinstance(input_data, dict):
@@ -75,8 +76,14 @@ class SeverityPredictor:
         # Reject any attempted post-accident leakage columns
         detected_leakage = [c for c in POST_ACCIDENT_COLUMNS if c in df.columns]
         if detected_leakage:
-            # We strip them rather than silently allowing them to alter predictions
-            df = df.drop(columns=detected_leakage)
+            if raise_on_leakage:
+                raise ValueError(
+                    f"Post-accident target leakage detected in input: {detected_leakage}. "
+                    "Pre-accident severity prediction strictly forbids post-accident features."
+                )
+            else:
+                # We strip them rather than silently allowing them to alter predictions
+                df = df.drop(columns=detected_leakage)
 
         # Ensure all expected features are present; impute missing with defaults if needed
         for col in NUMERIC_FEATURES:
@@ -94,7 +101,8 @@ class SeverityPredictor:
         input_data: Union[Dict[str, Any], pd.DataFrame]
     ) -> Dict[str, Any]:
         """Generate severity predictions and probabilities with complete audit metadata."""
-        df_prepared = self.validate_and_prepare_input(input_data)
+        # Enforce strict leakage defense on prediction requests
+        df_prepared = self.validate_and_prepare_input(input_data, raise_on_leakage=True)
 
         predictions = self.model.predict(df_prepared)
         probabilities = (
@@ -116,7 +124,7 @@ class SeverityPredictor:
                 "confidence": round(float(np.max(probabilities[i])), 4) if probabilities is not None else None
             })
 
-        return {
+        output = {
             "predictions": results if len(results) > 1 else results[0],
             "record_count": len(results),
             "model_version": self.metadata.get("version", "severity_v2"),
@@ -127,3 +135,11 @@ class SeverityPredictor:
                 "interventions or insurance underwriting."
             )
         }
+
+        # Populate top-level fields for single-record predictions for clean access
+        if len(results) == 1:
+            output["predicted_severity"] = results[0]["predicted_severity"]
+            output["probabilities"] = results[0]["probabilities"]
+            output["confidence"] = results[0]["confidence"]
+
+        return output
