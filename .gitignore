@@ -51,3 +51,10 @@ Data/Weather/*.grib
 Data/Weather/*.idx
 Data/Road/*.osm.pbf
 *.joblib
+
+# Frontend artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+node_modules/
+
