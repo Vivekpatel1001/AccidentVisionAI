@@ -1,0 +1,80 @@
+{
+  "project": "AccidentVision AI",
+  "model_name": "Extra Trees Classifier",
+  "version": "severity_extra_trees_v1",
+  "purpose": "Experimental accident-severity classification prototype",
+  "target": "accident_severity",
+  "classes": [
+    "fatal",
+    "major",
+    "minor"
+  ],
+  "numeric_features": [
+    "latitude",
+    "longitude",
+    "hour",
+    "is_weekend",
+    "lanes",
+    "traffic_signal",
+    "temperature",
+    "is_peak_hour",
+    "osm_road_length_m",
+    "distance_to_road_m"
+  ],
+  "categorical_features": [
+    "city",
+    "road_type",
+    "day_of_week",
+    "weather",
+    "visibility",
+    "traffic_density",
+    "osm_highway",
+    "road_match_quality"
+  ],
+  "all_features": [
+    "latitude",
+    "longitude",
+    "hour",
+    "is_weekend",
+    "lanes",
+    "traffic_signal",
+    "temperature",
+    "is_peak_hour",
+    "osm_road_length_m",
+    "distance_to_road_m",
+    "city",
+    "road_type",
+    "day_of_week",
+    "weather",
+    "visibility",
+    "traffic_density",
+    "osm_highway",
+    "road_match_quality"
+  ],
+  "training_years": [
+    2022,
+    2023
+  ],
+  "validation_year": 2024,
+  "final_holdout_year": 2025,
+  "training_records": 12205,
+  "validation_records": 6061,
+  "validation_metrics": {
+    "accuracy": 0.42682725622834516,
+    "balanced_accuracy": 0.32601069065654004,
+    "macro_f1": 0.3242896679747494,
+    "weighted_f1": 0.41481896643774663
+  },
+  "validation_reference": "Step 393/394",
+  "final_holdout_metrics": {
+    "accuracy": 0.4487,
+    "balanced_accuracy": 0.3379,
+    "macro_f1": 0.3366,
+    "weighted_f1": 0.4404,
+    "fatal_recall": 0.10687022900763359
+  },
+  "data_provenance_note": "The 20,000 source rows match a public repository exactly; underlying original crash-data provenance is unverified.",
+  "limitation": "Predictive performance is weak, particularly for fatal cases. Not validated for operational road-safety decisions.",
+  "sklearn_version": "1.6.1",
+  "created_utc": "2026-10-18T16:50:56.097483+00:00"
+}

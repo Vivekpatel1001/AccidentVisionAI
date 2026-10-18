@@ -1,0 +1,190 @@
+{
+  "project": "AccidentVision AI",
+  "model_name": "Extra Trees Classifier v2 (Native Scikit-Learn 1.8)",
+  "version": "severity_v2",
+  "purpose": "Scientifically audited accident-severity classification pipeline",
+  "target": "accident_severity",
+  "classes": [
+    "fatal",
+    "major",
+    "minor"
+  ],
+  "numeric_features": [
+    "latitude",
+    "longitude",
+    "hour",
+    "is_weekend",
+    "lanes",
+    "traffic_signal",
+    "temperature",
+    "is_peak_hour",
+    "osm_road_length_m",
+    "distance_to_road_m"
+  ],
+  "categorical_features": [
+    "city",
+    "road_type",
+    "day_of_week",
+    "weather",
+    "visibility",
+    "traffic_density",
+    "osm_highway",
+    "road_match_quality"
+  ],
+  "all_features": [
+    "latitude",
+    "longitude",
+    "hour",
+    "is_weekend",
+    "lanes",
+    "traffic_signal",
+    "temperature",
+    "is_peak_hour",
+    "osm_road_length_m",
+    "distance_to_road_m",
+    "city",
+    "road_type",
+    "day_of_week",
+    "weather",
+    "visibility",
+    "traffic_density",
+    "osm_highway",
+    "road_match_quality"
+  ],
+  "training_years": [
+    2022,
+    2023
+  ],
+  "validation_year": 2024,
+  "final_holdout_year": 2025,
+  "training_records": 12205,
+  "validation_records": 6061,
+  "holdout_records": 1734,
+  "validation_metrics": {
+    "model_name": "Extra Trees (v1 reproduction)",
+    "accuracy": 0.42682725622834516,
+    "balanced_accuracy": 0.32601069065654004,
+    "macro_f1": 0.3242896679747494,
+    "weighted_f1": 0.41481896643774663,
+    "fatal_recall": 0.10702702702702703,
+    "fatal_precision": 0.14494875549048317,
+    "fatal_f1": 0.12313432835820895,
+    "major_recall": 0.27298050139275765,
+    "minor_recall": 0.5980245435498354,
+    "log_loss": 1.0534287214341607
+  },
+  "final_holdout_metrics": {
+    "accuracy": 0.4486735870818916,
+    "balanced_accuracy": 0.3379060454245641,
+    "macro_f1": 0.3366357633629186,
+    "weighted_f1": 0.44037421813613364,
+    "fatal_recall": 0.10687022900763359,
+    "per_class": {
+      "fatal": {
+        "precision": 0.12903225806451613,
+        "recall": 0.10687022900763359,
+        "f1_score": 0.11691022964509394,
+        "support": 262
+      },
+      "major": {
+        "precision": 0.30042918454935624,
+        "recall": 0.28629856850715746,
+        "f1_score": 0.2931937172774869,
+        "support": 489
+      },
+      "minor": {
+        "precision": 0.5803996194100857,
+        "recall": 0.6205493387589013,
+        "f1_score": 0.599803343166175,
+        "support": 983
+      }
+    },
+    "confusion_matrix": [
+      [
+        28,
+        75,
+        159
+      ],
+      [
+        67,
+        140,
+        282
+      ],
+      [
+        122,
+        251,
+        610
+      ]
+    ]
+  },
+  "spatial_loco_cv_metrics": {
+    "mean_macro_f1": 0.3287882811602668,
+    "std_macro_f1": 0.01328737719037006,
+    "mean_balanced_accuracy": 0.33416260415539956,
+    "mean_fatal_recall": 0.08650904304671675,
+    "by_city": {
+      "Bangalore": {
+        "accuracy": 0.43420173680694724,
+        "balanced_accuracy": 0.31264395827430946,
+        "macro_f1": 0.3059975967664516,
+        "fatal_recall": 0.06465517241379311,
+        "records": 1497
+      },
+      "Chandigarh": {
+        "accuracy": 0.47368421052631576,
+        "balanced_accuracy": 0.35395573922688267,
+        "macro_f1": 0.35198774344219047,
+        "fatal_recall": 0.1282051282051282,
+        "records": 1615
+      },
+      "Chennai": {
+        "accuracy": 0.4531645569620253,
+        "balanced_accuracy": 0.3269224485930033,
+        "macro_f1": 0.3194923935250868,
+        "fatal_recall": 0.08482142857142858,
+        "records": 1580
+      },
+      "Delhi": {
+        "accuracy": 0.4654471544715447,
+        "balanced_accuracy": 0.34273440037980224,
+        "macro_f1": 0.33700553392088545,
+        "fatal_recall": 0.07239819004524888,
+        "records": 1476
+      },
+      "Hyderabad": {
+        "accuracy": 0.4594222833562586,
+        "balanced_accuracy": 0.34078667854874434,
+        "macro_f1": 0.3381795405656216,
+        "fatal_recall": 0.10891089108910891,
+        "records": 1454
+      },
+      "Kolkata": {
+        "accuracy": 0.4573055028462998,
+        "balanced_accuracy": 0.3316506096400889,
+        "macro_f1": 0.3252450126237562,
+        "fatal_recall": 0.07983193277310924,
+        "records": 1581
+      },
+      "Mumbai": {
+        "accuracy": 0.44391570360299115,
+        "balanced_accuracy": 0.3283886515242833,
+        "macro_f1": 0.3196147254297201,
+        "fatal_recall": 0.05741626794258373,
+        "records": 1471
+      },
+      "Pune": {
+        "accuracy": 0.43762246897452645,
+        "balanced_accuracy": 0.336218347056082,
+        "macro_f1": 0.33278370300842214,
+        "fatal_recall": 0.09583333333333334,
+        "records": 1531
+      }
+    }
+  },
+  "scientific_audit_findings": {
+    "fatal_recall_limitation": "Fatal-case recall is ~10.7%, indicating that pre-accident factors alone fail to detect over 89% of fatal outcomes.",
+    "balanced_accuracy_note": "Balanced accuracy (~32.6%) is on par with random chance (33.3%), demonstrating near-zero separable predictive signal in pre-accident features.",
+    "operational_recommendation": "The model must NOT be used for safety-critical deployment. The platform's defensible utility lies in descriptive geospatial accident clustering, not deterministic severity prediction."
+  },
+  "sklearn_version": "1.5.3"
+}
