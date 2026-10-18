@@ -10,9 +10,8 @@ import {
   Menu,
   X,
   Sparkles,
-  ChevronDown,
-  Activity,
-  Layers
+  Flame,
+  Navigation
 } from 'lucide-react';
 import { getMetadata } from '../../services/api';
 import { useCityFilter } from '../../context/CityContext';
@@ -33,15 +32,21 @@ const customerNavItems: NavItem[] = [
   },
   {
     name: 'Accident Hotspots',
+    href: '/hotspots',
+    icon: Flame,
+    description: 'Explore high-density collision corridors in your city',
+  },
+  {
+    name: 'Incident Map',
     href: '/map',
-    icon: MapPin,
-    description: 'Explore high-risk collision zones in your city',
+    icon: Navigation,
+    description: 'Geospatial point map of verified crash locations',
   },
   {
     name: 'Safe Travel Times',
     href: '/temporal',
     icon: Clock,
-    description: 'Find the safest and most dangerous commute hours',
+    description: 'Find safest and high-congestion commute windows',
   },
   {
     name: 'Road Safety Factors',
@@ -50,10 +55,10 @@ const customerNavItems: NavItem[] = [
     description: 'Weather, road types, and infrastructure impacts',
   },
   {
-    name: 'Driving Advisory',
+    name: 'Safety Guide',
     href: '/methodology',
     icon: HelpCircle,
-    description: 'Defensive driving tips and emergency contacts',
+    description: 'Defensive driving tips and emergency helplines',
   },
 ];
 
@@ -79,25 +84,25 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border-dark bg-bg-secondary/90 backdrop-blur-md shadow-card-dark">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
           <Link to="/" className="flex items-center space-x-3 group shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-glow-primary border border-blue-400/30 group-hover:scale-105 transition-transform duration-200">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex items-center justify-center text-white shadow-md border border-blue-500/20 group-hover:scale-105 transition-transform duration-200">
               <ShieldAlert className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
-                <span className="font-bold text-base tracking-tight text-white group-hover:text-blue-400 transition-colors">
+                <span className="font-extrabold text-base tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
                   AccidentVision
                 </span>
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
                   AI
                 </span>
               </div>
-              <div className="text-[11px] text-text-muted font-medium tracking-wide">
-                Road Risk Intelligence
+              <div className="text-[11px] text-slate-500 font-medium tracking-wide">
+                Road Risk Intelligence Platform
               </div>
             </div>
           </Link>
@@ -114,8 +119,8 @@ export const Navbar: React.FC = () => {
                   className={({ isActive }) =>
                     `flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
                       isActive
-                        ? 'bg-accent-primary text-white font-semibold shadow-glow-primary'
-                        : 'text-text-muted hover:text-white hover:bg-bg-surface'
+                        ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                     }`
                   }
                 >
@@ -129,19 +134,19 @@ export const Navbar: React.FC = () => {
           {/* Right Action Controls */}
           <div className="flex items-center space-x-3">
             {/* City Selector */}
-            <div className="flex items-center bg-bg-card border border-border-dark hover:border-accent-primary/40 rounded-lg px-2.5 py-1.5 text-xs transition-colors shadow-sm">
-              <MapPin className="w-3.5 h-3.5 text-accent-primary mr-1.5 shrink-0" />
+            <div className="flex items-center bg-white border border-slate-200 hover:border-blue-400 rounded-lg px-2.5 py-1.5 text-xs transition-colors shadow-sm">
+              <MapPin className="w-3.5 h-3.5 text-blue-600 mr-1.5 shrink-0" />
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="bg-transparent text-text-main text-xs focus:outline-none cursor-pointer pr-1 font-medium"
+                className="bg-transparent text-slate-800 text-xs focus:outline-none cursor-pointer pr-1 font-semibold"
                 aria-label="Select City"
               >
-                <option value="" className="bg-bg-card text-text-main">
+                <option value="" className="bg-white text-slate-900">
                   All 8 Metros
                 </option>
                 {cityList.map((city) => (
-                  <option key={city} value={city} className="bg-bg-card text-text-main">
+                  <option key={city} value={city} className="bg-white text-slate-900">
                     {city}
                   </option>
                 ))}
@@ -149,7 +154,7 @@ export const Navbar: React.FC = () => {
               {selectedCity && (
                 <button
                   onClick={() => setSelectedCity('')}
-                  className="ml-1 text-[10px] text-text-muted hover:text-accent-critical underline font-mono"
+                  className="ml-1 text-[10px] text-slate-400 hover:text-red-600 underline font-mono"
                   title="Clear City Filter"
                 >
                   Clear
@@ -158,15 +163,15 @@ export const Navbar: React.FC = () => {
             </div>
 
             {/* Live Telemetry Pill */}
-            <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-full bg-accent-success/10 border border-accent-success/25 text-[11px] font-medium text-accent-success">
-              <span className="w-2 h-2 rounded-full bg-accent-success animate-pulse shrink-0" />
-              <span>Live Telemetry</span>
+            <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-semibold text-emerald-700 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span>Verified 20K Crashes</span>
             </div>
 
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg bg-bg-card border border-border-dark text-text-muted hover:text-white hover:bg-bg-surface transition-colors"
+              className="lg:hidden p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm"
               aria-label="Toggle Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -177,7 +182,7 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-border-dark bg-bg-secondary px-4 pt-3 pb-4 space-y-2">
+        <div className="lg:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-4 space-y-2 shadow-lg">
           {customerNavItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -189,15 +194,15 @@ export const Navbar: React.FC = () => {
                 className={({ isActive }) =>
                   `flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-accent-primary text-white font-semibold'
-                      : 'text-text-muted hover:text-white hover:bg-bg-surface'
+                      ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                   }`
                 }
               >
-                <Icon className="w-4 h-4 shrink-0 text-accent-primary" />
+                <Icon className="w-4 h-4 shrink-0 text-blue-600" />
                 <div>
-                  <div className="text-sm">{item.name}</div>
-                  <div className="text-[11px] text-text-subtle">{item.description}</div>
+                  <div className="text-sm font-semibold">{item.name}</div>
+                  <div className="text-[11px] text-slate-500">{item.description}</div>
                 </div>
               </NavLink>
             );
@@ -207,3 +212,5 @@ export const Navbar: React.FC = () => {
     </header>
   );
 };
+
+export default Navbar;

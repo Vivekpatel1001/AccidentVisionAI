@@ -18,40 +18,44 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({
     switch (type) {
       case 'critical':
         return {
-          container: 'bg-accent-critical/10 border-accent-critical/30 text-accent-critical',
+          container: 'bg-red-50 border-red-200 text-red-900',
           icon: AlertCircle,
-          iconColor: 'text-accent-critical',
+          iconColor: 'text-red-600',
+          subtext: 'text-red-700',
         };
       case 'warning':
         return {
-          container: 'bg-accent-warning/10 border-accent-warning/30 text-amber-200',
+          container: 'bg-amber-50 border-amber-200 text-amber-900',
           icon: AlertTriangle,
-          iconColor: 'text-accent-warning',
+          iconColor: 'text-amber-600',
+          subtext: 'text-amber-700',
         };
       case 'success':
         return {
-          container: 'bg-accent-success/10 border-accent-success/30 text-emerald-200',
+          container: 'bg-emerald-50 border-emerald-200 text-emerald-900',
           icon: CheckCircle2,
-          iconColor: 'text-accent-success',
+          iconColor: 'text-emerald-600',
+          subtext: 'text-emerald-700',
         };
       case 'info':
       default:
         return {
-          container: 'bg-accent-primary/10 border-accent-primary/30 text-sky-200',
+          container: 'bg-blue-50 border-blue-200 text-blue-900',
           icon: Info,
-          iconColor: 'text-accent-primary',
+          iconColor: 'text-blue-600',
+          subtext: 'text-blue-700',
         };
     }
   };
 
-  const { container, icon: Icon, iconColor } = getBannerStyles();
+  const { container, icon: Icon, iconColor, subtext } = getBannerStyles();
 
   return (
-    <div className={`p-4 rounded-lg border flex items-start space-x-3.5 ${container} ${className}`}>
+    <div className={`p-4 rounded-xl border flex items-start space-x-3.5 shadow-sm ${container} ${className}`}>
       <Icon className={`w-5 h-5 shrink-0 mt-0.5 ${iconColor}`} />
       <div className="flex-1 text-xs leading-relaxed space-y-1">
-        {title && <div className="font-semibold text-sm tracking-wide text-text-main">{title}</div>}
-        <div className="text-text-muted">{children}</div>
+        {title && <div className="font-bold text-sm tracking-wide">{title}</div>}
+        <div className={`text-xs ${subtext}`}>{children}</div>
       </div>
     </div>
   );

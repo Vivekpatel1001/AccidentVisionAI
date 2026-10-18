@@ -8,7 +8,8 @@ import {
   ShieldAlert,
   GitBranch,
   Gauge,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 import {
   BarChart,
@@ -38,7 +39,7 @@ export const SeverityPage: React.FC = () => {
 
   if (isError || !data) {
     return (
-      <div className="p-6 rounded-xl bg-accent-critical/10 border border-accent-critical/30 text-accent-critical text-sm">
+      <div className="p-6 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-sm">
         Failed to fetch severity factor distributions. Please ensure the backend is running.
       </div>
     );
@@ -47,32 +48,32 @@ export const SeverityPage: React.FC = () => {
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="border-b border-border-dark pb-4">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-accent-primary/10 border border-accent-primary/30 text-accent-primary text-xs font-semibold mb-2">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 shadow-sm">
+        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold mb-2">
           <Gauge className="w-3.5 h-3.5" />
           <span>Infrastructure & Environment</span>
         </div>
-        <h1 className="text-2xl font-extrabold text-white tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
           Road Factors & Crash Severity Guide
         </h1>
-        <p className="text-sm text-text-muted mt-1">
+        <p className="text-sm text-slate-600 mt-1">
           How speed corridors, road geometry, traffic signals, and weather patterns influence collision severity in {selectedCity || 'major Indian metros'}.
         </p>
       </div>
 
       {/* Road Type vs Severity Breakdown (Stacked Bar Chart) */}
-      <div className="bg-bg-card border border-border-dark rounded-xl p-6 shadow-card-dark space-y-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <GitBranch className="w-4 h-4 text-accent-primary" />
+            <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              <GitBranch className="w-4 h-4 text-blue-600" />
               Road Classification vs Collision Severity
             </h2>
-            <p className="text-xs text-text-muted">
+            <p className="text-xs text-slate-500">
               Severity distribution across Highways, Urban Arterials, Local Streets, and Rural corridors
             </p>
           </div>
-          <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-bg-surface text-text-muted border border-border-dark">
+          <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
             20k Verified Crashes
           </span>
         </div>
@@ -80,136 +81,92 @@ export const SeverityPage: React.FC = () => {
         <div className="h-80 w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data.road_type_distribution} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1E2B45" vertical={false} />
-              <XAxis dataKey="road_type" stroke="#94A3B8" fontSize={11} tickLine={false} />
-              <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+              <XAxis dataKey="road_type" stroke="#64748B" fontSize={11} tickLine={false} />
+              <YAxis stroke="#64748B" fontSize={11} tickLine={false} />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#121A2D',
-                  borderColor: '#1E2B45',
-                  borderRadius: '10px',
-                  color: '#F8FAFC',
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#E2E8F0',
+                  borderRadius: '12px',
+                  color: '#0F172A',
                   fontSize: '12px',
-                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.8)',
+                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
                 }}
               />
-              <Legend
-                verticalAlign="top"
-                height={36}
-                iconType="circle"
-                formatter={(val) => <span className="text-xs text-text-main font-medium">{val}</span>}
-              />
-              <Bar dataKey="minor" stackId="a" fill="#10B981" name="Minor Damage" />
-              <Bar dataKey="severe" stackId="a" fill="#F59E0B" name="Severe Injury" />
-              <Bar dataKey="fatal" stackId="a" fill="#EF4444" name="Fatal Impact" />
+              <Legend verticalAlign="top" height={36} iconType="circle" />
+              <Bar dataKey="minor" stackId="a" fill="#10B981" name="Minor / Property Damage" />
+              <Bar dataKey="severe" stackId="a" fill="#F59E0B" name="Severe / Major Injury" />
+              <Bar dataKey="fatal" stackId="a" fill="#EF4444" name="Fatal Collision" />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Environmental Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Weather Conditions & Fatal Ratio */}
-        <div className="bg-bg-card border border-border-dark rounded-xl p-5 shadow-card-dark space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-border-dark">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <Cloud className="w-4 h-4 text-accent-primary" />
-              Weather Conditions Impact
-            </h3>
-            <span className="text-[10px] font-mono text-text-muted">Fatality Ratio</span>
+      {/* Grid: Signals & Weather Impacts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Traffic Signals Safety Impact */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+          <div>
+            <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              Traffic Signal Infrastructure Safety Multiplier
+            </h2>
+            <p className="text-xs text-slate-500">Fatality rate at signalized intersections vs uncontrolled crossings</p>
           </div>
 
-          <div className="space-y-3 font-mono text-xs">
-            {data.weather_impact.map((w) => (
-              <div key={w.weather} className="p-3 rounded-lg bg-bg-surface/60 border border-border-dark">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-text-main font-medium">{w.weather}</span>
-                  <span className={w.fatal_rate > 15 ? 'text-accent-critical font-bold' : 'text-text-muted'}>
-                    {w.fatal_rate}% Fatal
-                  </span>
+          <div className="space-y-3 pt-2">
+            {data.traffic_signal_impact.map((sig, idx) => (
+              <div
+                key={idx}
+                className={`p-4 rounded-xl border flex items-center justify-between ${
+                  sig.has_signal
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                    : 'bg-red-50 border-red-200 text-red-950'
+                }`}
+              >
+                <div>
+                  <div className="font-bold text-sm">
+                    {sig.has_signal ? '🟢 Signalized Intersection' : '⚪ Uncontrolled Crossing (No Signal)'}
+                  </div>
+                  <div className="text-xs opacity-75 mt-0.5">
+                    {sig.total.toLocaleString()} crashes recorded in dataset
+                  </div>
                 </div>
-                <div className="w-full bg-bg-main h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${w.fatal_rate > 15 ? 'bg-accent-critical' : 'bg-accent-primary'}`}
-                    style={{ width: `${Math.min(100, w.fatal_rate * 4)}%` }}
-                  />
+                <div className="text-right">
+                  <div className="text-2xl font-extrabold font-mono">
+                    {sig.fatal_rate}%
+                  </div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider">Fatal Proportion</div>
                 </div>
-                <span className="text-[10px] text-text-subtle block mt-1.5">
-                  {w.total.toLocaleString()} total incidents recorded
-                </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Traffic Density Impact */}
-        <div className="bg-bg-card border border-border-dark rounded-xl p-5 shadow-card-dark space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-border-dark">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <Car className="w-4 h-4 text-accent-warning" />
-              Traffic Density Stratification
-            </h3>
-            <span className="text-[10px] font-mono text-text-muted">Impact</span>
+        {/* Weather Conditions Impact */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+          <div>
+            <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+              <Cloud className="w-4 h-4 text-blue-600" />
+              Weather Condition Hazard Ratios
+            </h2>
+            <p className="text-xs text-slate-500">Crash frequency and fatality percentage across ambient weather</p>
           </div>
 
-          <div className="space-y-3 font-mono text-xs">
-            {data.traffic_density_impact.map((d) => (
-              <div key={d.density} className="p-3 rounded-lg bg-bg-surface/60 border border-border-dark">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-text-main font-medium">{d.density} Congestion</span>
-                  <span className="text-accent-warning font-bold">{d.fatal_rate}% Fatal</span>
+          <div className="space-y-3 pt-2">
+            {data.weather_impact.map((w, idx) => (
+              <div key={idx} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-xs text-slate-900">{w.weather} Weather</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">{w.total.toLocaleString()} recorded collisions</div>
                 </div>
-                <div className="w-full bg-bg-main h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-accent-warning"
-                    style={{ width: `${Math.min(100, d.fatal_rate * 4)}%` }}
-                  />
-                </div>
-                <span className="text-[10px] text-text-subtle block mt-1.5">
-                  {d.total.toLocaleString()} crashes | {d.fatal} fatal
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Traffic Signal Control Impact */}
-        <div className="bg-bg-card border border-border-dark rounded-xl p-5 shadow-card-dark space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-border-dark">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-              <Lightbulb className="w-4 h-4 text-accent-success" />
-              Traffic Signal Protection
-            </h3>
-            <span className="text-[10px] font-mono text-text-muted">Control</span>
-          </div>
-
-          <div className="space-y-3 font-mono text-xs">
-            {data.traffic_signal_impact.map((s) => (
-              <div key={String(s.has_signal)} className="p-3 rounded-lg bg-bg-surface/60 border border-border-dark">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-text-main font-medium">
-                    {s.has_signal ? '🟢 Signalized Junction' : '⚪ Uncontrolled Road'}
-                  </span>
-                  <span className={s.has_signal ? 'text-accent-success font-bold' : 'text-accent-critical font-bold'}>
-                    {s.fatal_rate}% Fatal
-                  </span>
-                </div>
-                <div className="w-full bg-bg-main h-2 rounded-full overflow-hidden mb-2">
-                  <div
-                    className={`h-full ${s.has_signal ? 'bg-accent-success' : 'bg-accent-critical'}`}
-                    style={{ width: `${Math.min(100, s.fatal_rate * 4)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-[10px] text-text-subtle">
-                  <span>Total: {s.total.toLocaleString()}</span>
-                  <span>Fatal: {s.fatal} crashes</span>
+                <div className="text-right">
+                  <div className="text-sm font-extrabold font-mono text-slate-900">{w.fatal_rate}% Fatal</div>
+                  <div className="text-[10px] text-slate-500">{w.fatal} Fatalities</div>
                 </div>
               </div>
             ))}
-          </div>
-
-          <div className="p-3 rounded-lg bg-bg-surface/40 border border-border-dark text-[11px] text-text-muted leading-relaxed">
-            Traffic signals enforce speed mitigation and right-of-way clarity, reducing severe T-bone collisions by over 40%.
           </div>
         </div>
       </div>

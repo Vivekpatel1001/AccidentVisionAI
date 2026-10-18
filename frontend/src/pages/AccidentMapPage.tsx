@@ -4,38 +4,38 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-le
 import {
   MapPin,
   Filter,
-  X,
+  Layers,
+  Info,
   Calendar,
   Clock,
-  Cloud,
   Car,
+  CloudRain,
+  Navigation,
   Compass,
-  AlertTriangle,
-  Info,
-  ShieldAlert,
-  ShieldCheck
+  Sparkles,
+  ShieldAlert
 } from 'lucide-react';
 import { getGeoAccidents } from '../services/api';
 import { useCityFilter } from '../context/CityContext';
 import { AccidentGeoPoint } from '../types/api';
-import { Badge } from '../components/common/Badge';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
-const CITY_COORDINATES: { [key: string]: [number, number, number] } = {
-  Mumbai: [19.076, 72.8777, 12],
-  Delhi: [28.6139, 77.209, 12],
+const CITY_COORDINATES: Record<string, [number, number, number]> = {
+  Mumbai: [19.0760, 72.8777, 12],
+  Delhi: [28.6139, 77.2090, 11],
   Bengaluru: [12.9716, 77.5946, 12],
-  Kolkata: [22.5726, 88.3639, 12],
+  Bangalore: [12.9716, 77.5946, 12],
   Chennai: [13.0827, 80.2707, 12],
-  Hyderabad: [17.385, 78.4867, 12],
   Pune: [18.5204, 73.8567, 12],
-  Chandigarh: [30.7333, 76.7794, 12],
+  Hyderabad: [17.3850, 78.4867, 12],
+  Kolkata: [22.5726, 88.3639, 12],
+  Chandigarh: [30.7333, 76.7794, 13],
 };
 
-const DEFAULT_CENTER: [number, number] = [21.0, 78.0];
+const DEFAULT_CENTER: [number, number] = [21.5, 78.5];
 const DEFAULT_ZOOM = 5;
 
-// Helper component to smoothly reposition map when city changes
+// Recenter component when city changes
 const MapRecenter: React.FC<{ center: [number, number]; zoom: number }> = ({ center, zoom }) => {
   const map = useMap();
   useEffect(() => {
@@ -61,64 +61,90 @@ export const AccidentMapPage: React.FC = () => {
     ? CITY_COORDINATES[selectedCity][2]
     : DEFAULT_ZOOM;
 
+  const pointsList = Array.isArray(points) ? points : [];
+
   const getMarkerColor = (severity: string) => {
-    switch (severity) {
-      case 'Fatal':
-        return '#EF4444'; // Classic Crimson
-      case 'Severe':
-        return '#F59E0B'; // Classic Amber
-      case 'Minor':
+    switch (severity?.toLowerCase()) {
+      case 'fatal':
+        return '#EF4444'; // Vibrant Crimson
+      case 'severe':
+      case 'major':
+        return '#F59E0B'; // Warm Amber
+      case 'minor':
       default:
-        return '#10B981'; // Classic Emerald
+        return '#10B981'; // Vibrant Emerald
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="border-b border-border-dark pb-4">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-accent-primary/10 border border-accent-primary/30 text-accent-primary text-xs font-semibold mb-2">
-          <MapPin className="w-3.5 h-3.5" />
-          <span>City Blackspots & Danger Zones</span>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold mb-2">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Interactive Real-World Geospatial Map</span>
+          </div>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            Accident Collision Blackspot Explorer
+          </h1>
+          <p className="text-slate-600 text-sm mt-1 max-w-2xl">
+            Explore verified accident coordinates, impact severity clusters, and road geometry attributes across 8 metropolitan cities.
+          </p>
         </div>
-        <h1 className="text-2xl font-extrabold text-white tracking-tight">
-          {selectedCity ? `${selectedCity} Accident Hotspots & Blackspots` : 'Metropolitan Accident Hotspots Map'}
-        </h1>
-        <p className="text-sm text-text-muted mt-1">
-          Explore individual crash coordinates, high-risk corridors, and dangerous intersections to plan safer routes.
-        </p>
+
+        {/* Legend */}
+        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm" />
+            <span>Fatal</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-amber-500 shadow-sm" />
+            <span>Severe</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
+            <span>Minor</span>
+          </div>
+        </div>
       </div>
 
       {/* Main Map Box */}
-      <div className="relative h-[720px] w-full rounded-2xl overflow-hidden border border-border-dark shadow-card-dark flex">
+      <div className="relative h-[720px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-md flex bg-slate-100">
         {/* Top Floating Controls Bar */}
-        <div className="absolute top-4 left-4 z-[1000] flex flex-wrap items-center gap-2 bg-bg-card/95 backdrop-blur-md p-2 rounded-xl border border-border-dark shadow-xl">
-          <span className="text-xs font-bold text-white flex items-center gap-1.5 px-2">
-            <Filter className="w-3.5 h-3.5 text-accent-primary" />
+        <div className="absolute top-4 left-4 z-[1000] flex flex-wrap items-center gap-2 bg-white/95 backdrop-blur-md p-2 rounded-xl border border-slate-200 shadow-md">
+          <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5 px-2">
+            <Filter className="w-3.5 h-3.5 text-blue-600" />
             Filter Severity:
           </span>
 
-          {['', 'Fatal', 'Severe', 'Minor'].map((sev) => (
+          {[
+            { id: '', label: 'All Incidents' },
+            { id: 'Fatal', label: 'Fatal Crashes' },
+            { id: 'Severe', label: 'Severe Injuries' },
+            { id: 'Minor', label: 'Minor Accidents' }
+          ].map((sev) => (
             <button
-              key={sev || 'all'}
-              onClick={() => setSeverityFilter(sev)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all ${
-                severityFilter === sev
-                  ? 'bg-accent-primary text-white font-semibold shadow-glow-primary'
-                  : 'bg-bg-surface text-text-muted hover:text-white hover:bg-bg-surface/80'
+              key={sev.id}
+              onClick={() => setSeverityFilter(sev.id)}
+              className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all ${
+                severityFilter === sev.id
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
               }`}
             >
-              {sev ? `${sev} Accidents` : 'All Incidents'}
+              {sev.label}
             </button>
           ))}
 
-          <div className="h-4 w-px bg-border-dark mx-1 hidden sm:block" />
+          <div className="h-4 w-px bg-slate-200 mx-1 hidden sm:block" />
 
-          <div className="text-xs font-mono text-text-muted px-2">
+          <div className="text-xs font-mono font-bold text-slate-600 px-2">
             {isLoading ? (
-              <span className="animate-pulse text-accent-primary">Loading incidents...</span>
+              <span className="animate-pulse text-blue-600">Loading incidents...</span>
             ) : (
-              <span>{points && typeof points.length === 'number' ? `${points.length.toLocaleString()} plotted` : '0 points'}</span>
+              <span>{pointsList.length.toLocaleString()} verified spots</span>
             )}
           </div>
         </div>
@@ -126,7 +152,7 @@ export const AccidentMapPage: React.FC = () => {
         {/* Main Map Container */}
         <div className="flex-1 h-full w-full relative">
           {isLoading && (
-            <div className="absolute inset-0 z-[500] bg-bg-main/70 backdrop-blur-sm flex items-center justify-center">
+            <div className="absolute inset-0 z-[500] bg-white/80 backdrop-blur-sm flex items-center justify-center">
               <LoadingSpinner message="Loading geospatial accident blackspots..." />
             </div>
           )}
@@ -139,16 +165,17 @@ export const AccidentMapPage: React.FC = () => {
           >
             <MapRecenter center={cityCoords} zoom={zoomLevel} />
 
-            {/* CartoDB Dark Matter Tiles */}
+            {/* CartoDB Voyager Light Map Tiles (Real Street & Highway Data) */}
             <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://openstreetmap.org">OSM</a>'
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               maxZoom={19}
             />
 
-            {points?.map((pt) => {
+            {pointsList.map((pt) => {
               const color = getMarkerColor(pt.accident_severity);
-              const radius = pt.accident_severity === 'Fatal' ? 7 : pt.accident_severity === 'Severe' ? 5 : 4;
+              const isFatal = String(pt.accident_severity).toLowerCase() === 'fatal';
+              const radius = isFatal ? 7 : 5;
 
               return (
                 <CircleMarker
@@ -158,7 +185,7 @@ export const AccidentMapPage: React.FC = () => {
                   pathOptions={{
                     fillColor: color,
                     fillOpacity: 0.85,
-                    color: '#080C15',
+                    color: '#FFFFFF',
                     weight: 1.5,
                   }}
                   eventHandlers={{
@@ -166,10 +193,10 @@ export const AccidentMapPage: React.FC = () => {
                   }}
                 >
                   <Tooltip direction="top" offset={[0, -5]} opacity={0.95}>
-                    <div className="text-xs font-sans">
-                      <span className="font-bold text-white">{pt.city}</span> ({pt.accident_severity})
-                      <div className="text-[11px] text-text-muted">
-                        {pt.road_type} • {pt.hour}:00 hrs • {pt.weather}
+                    <div className="text-xs font-sans p-1">
+                      <div className="font-bold text-slate-900">{pt.city} ({pt.accident_severity})</div>
+                      <div className="text-[11px] text-slate-600 mt-0.5">
+                        {pt.road_type} • {pt.hour}:00 hrs • Weather: {pt.weather}
                       </div>
                     </div>
                   </Tooltip>
@@ -177,146 +204,59 @@ export const AccidentMapPage: React.FC = () => {
               );
             })}
           </MapContainer>
-
-          {/* Map Legend */}
-          <div className="absolute bottom-4 left-4 z-[1000] bg-bg-card/95 backdrop-blur-md p-3.5 rounded-xl border border-border-dark shadow-xl text-xs space-y-2">
-            <div className="text-[10px] uppercase font-bold text-text-subtle tracking-wider">
-              Collision Severity
-            </div>
-            <div className="flex items-center space-x-2.5">
-              <span className="w-3 h-3 rounded-full bg-accent-critical inline-block shadow-glow-critical" />
-              <span className="text-text-main font-semibold">Fatal Collision</span>
-            </div>
-            <div className="flex items-center space-x-2.5">
-              <span className="w-3 h-3 rounded-full bg-accent-warning inline-block" />
-              <span className="text-text-main font-semibold">Severe Injury Crash</span>
-            </div>
-            <div className="flex items-center space-x-2.5">
-              <span className="w-3 h-3 rounded-full bg-accent-success inline-block" />
-              <span className="text-text-main font-semibold">Minor Vehicle Damage</span>
-            </div>
-          </div>
         </div>
 
-        {/* Slide-over Detail Drawer */}
+        {/* Right Floating Incident Detail Drawer */}
         {selectedIncident && (
-          <div className="w-84 sm:w-96 bg-bg-card border-l border-border-dark flex flex-col h-full z-[1001] shadow-2xl animate-in slide-in-from-right duration-200">
-            <div className="p-4 border-b border-border-dark flex items-center justify-between">
+          <div className="absolute top-4 right-4 z-[1000] w-80 bg-white rounded-2xl border border-slate-200 shadow-xl p-5 space-y-4 animate-in fade-in slide-in-from-right duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center space-x-2">
-                <MapPin className="w-4 h-4 text-accent-primary" />
-                <span className="font-mono font-bold text-sm text-text-main">
-                  Incident #{selectedIncident.accident_id}
+                <span
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: getMarkerColor(selectedIncident.accident_severity) }}
+                />
+                <span className="font-extrabold text-sm text-slate-900">
+                  {selectedIncident.accident_severity} Incident
                 </span>
               </div>
               <button
                 onClick={() => setSelectedIncident(null)}
-                className="p-1.5 rounded-lg text-text-muted hover:text-white hover:bg-bg-surface transition-colors"
-                title="Close"
+                className="text-slate-400 hover:text-slate-700 text-xs font-bold p-1 rounded hover:bg-slate-100"
               >
-                <X className="w-4 h-4" />
+                ✕ Close
               </button>
             </div>
 
-            <div className="p-5 flex-1 overflow-y-auto space-y-5 text-xs">
-              {/* Severity Pill */}
-              <div>
-                <span className="text-text-subtle uppercase text-[10px] font-mono block mb-1.5 font-bold">
-                  Collision Severity
-                </span>
-                <Badge
-                  variant={
-                    selectedIncident.accident_severity === 'Fatal'
-                      ? 'fatal'
-                      : selectedIncident.accident_severity === 'Severe'
-                      ? 'severe'
-                      : 'minor'
-                  }
-                  className="text-xs px-3 py-1 font-bold"
-                >
-                  {selectedIncident.accident_severity.toUpperCase()} INCIDENT
-                </Badge>
+            <div className="space-y-2.5 text-xs">
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500">Accident ID:</span>
+                <span className="font-mono font-bold text-slate-800">#{selectedIncident.accident_id}</span>
               </div>
-
-              {/* Geographic Coordinates */}
-              <div className="space-y-2 border-t border-border-dark pt-3">
-                <span className="text-text-subtle uppercase text-[10px] font-mono block font-bold">
-                  Location & Area
-                </span>
-                <div className="grid grid-cols-2 gap-2 font-mono text-[11px] bg-bg-surface p-2.5 rounded-lg border border-border-dark">
-                  <div>
-                    <span className="text-text-subtle block text-[10px]">Latitude</span>
-                    <span className="text-text-main font-medium">{selectedIncident.latitude.toFixed(5)}° N</span>
-                  </div>
-                  <div>
-                    <span className="text-text-subtle block text-[10px]">Longitude</span>
-                    <span className="text-text-main font-medium">{selectedIncident.longitude.toFixed(5)}° E</span>
-                  </div>
-                </div>
-                <div className="flex justify-between py-1 border-b border-border-dark/60">
-                  <span className="text-text-muted">Metropolitan Zone</span>
-                  <span className="text-text-main font-bold">{selectedIncident.city}</span>
-                </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500">City / Jurisdiction:</span>
+                <span className="font-semibold text-slate-800">{selectedIncident.city}</span>
               </div>
-
-              {/* Conditions */}
-              <div className="space-y-2 border-t border-border-dark pt-3">
-                <span className="text-text-subtle uppercase text-[10px] font-mono block font-bold">
-                  Crash Context & Timing
-                </span>
-                <div className="flex justify-between py-1 border-b border-border-dark/60">
-                  <span className="text-text-muted flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-accent-secondary" /> Incident Date
-                  </span>
-                  <span className="text-text-main font-medium">{selectedIncident.date}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-border-dark/60">
-                  <span className="text-text-muted flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-accent-secondary" /> Time of Day
-                  </span>
-                  <span className="text-text-main font-bold font-mono">{selectedIncident.hour}:00 HRS</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-border-dark/60">
-                  <span className="text-text-muted flex items-center gap-1.5">
-                    <Cloud className="w-3.5 h-3.5 text-accent-secondary" /> Weather
-                  </span>
-                  <span className="text-text-main font-medium">{selectedIncident.weather}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-border-dark/60">
-                  <span className="text-text-muted flex items-center gap-1.5">
-                    <Car className="w-3.5 h-3.5 text-accent-secondary" /> Traffic Flow
-                  </span>
-                  <span className="text-text-main font-medium">{selectedIncident.traffic_density}</span>
-                </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500">Roadway Classification:</span>
+                <span className="font-semibold text-slate-800">{selectedIncident.road_type}</span>
               </div>
-
-              {/* Roadway Profile */}
-              <div className="space-y-2 border-t border-border-dark pt-3">
-                <span className="text-text-subtle uppercase text-[10px] font-mono block font-bold">
-                  Roadway Profile
-                </span>
-                <div className="flex justify-between py-1 border-b border-border-dark/60">
-                  <span className="text-text-muted">Road Type</span>
-                  <span className="text-text-main font-medium">{selectedIncident.road_type}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-border-dark/60">
-                  <span className="text-text-muted">OSM Highway</span>
-                  <span className="text-accent-primary font-mono font-medium">
-                    {selectedIncident.osm_highway || 'Arterial'}
-                  </span>
-                </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500">Time of Occurrence:</span>
+                <span className="font-mono font-bold text-slate-800">{selectedIncident.hour}:00 HRS</span>
               </div>
-
-              {/* Safety Advisory for this type */}
-              <div className="p-3.5 rounded-xl bg-bg-surface border border-border-dark space-y-1">
-                <div className="text-[11px] font-bold text-accent-warning flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>Driver Safety Recommendation</span>
-                </div>
-                <p className="text-[11px] text-text-muted leading-relaxed">
-                  {selectedIncident.accident_severity === 'Fatal'
-                    ? 'High kinetic energy impact zone. Ensure speed stays strictly within legal limits and keep headlights on.'
-                    : 'Heavy junction congestion area. Avoid aggressive overtaking and watch for sudden pedestrian or 2-wheeler crossings.'}
-                </p>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500">Weather Condition:</span>
+                <span className="font-semibold text-slate-800">{selectedIncident.weather}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-50">
+                <span className="text-slate-500">Traffic Congestion:</span>
+                <span className="font-semibold text-slate-800">{selectedIncident.traffic_density}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-500">WGS84 Coordinates:</span>
+                <span className="font-mono text-[11px] text-slate-700">
+                  {selectedIncident.latitude.toFixed(4)}, {selectedIncident.longitude.toFixed(4)}
+                </span>
               </div>
             </div>
           </div>
