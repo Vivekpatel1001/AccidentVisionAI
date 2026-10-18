@@ -165,10 +165,10 @@ export const AccidentMapPage: React.FC = () => {
           >
             <MapRecenter center={cityCoords} zoom={zoomLevel} />
 
-            {/* CartoDB Voyager Light Map Tiles (Real Street & Highway Data) */}
+            {/* Official OpenStreetMap Tiles (100% Free, Zero Watermark, Full Road Telemetry) */}
             <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               maxZoom={19}
             />
 

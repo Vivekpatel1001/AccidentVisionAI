@@ -5,7 +5,7 @@ import { Footer } from './Footer';
 
 export const Layout: React.FC = () => {
   return (
-    <div className="min-h-screen w-full bg-bg-main text-text-main font-sans flex flex-col selection:bg-accent-primary/20 selection:text-accent-primary">
+    <div className="min-h-screen w-full bg-[#F8FAFC] text-slate-900 font-sans flex flex-col selection:bg-blue-100 selection:text-blue-900">
       {/* Top Classic Navigation Header */}
       <Navbar />
 

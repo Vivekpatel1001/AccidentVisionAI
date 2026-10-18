@@ -369,10 +369,12 @@ def get_geo_accidents(
     city: Optional[str] = None,
     severity: Optional[str] = None,
     road_type: Optional[str] = None,
-    sample_limit: int = Query(3000, ge=100, le=10000)
+    sample_limit: Optional[int] = None,
+    limit: Optional[int] = None
 ):
     """Retrieve lightweight geo-coordinates for interactive map rendering."""
     dff = df_master.copy()
+    effective_limit = limit or sample_limit or 3000
 
     norm_c = normalize_city(city)
     if norm_c:
@@ -383,8 +385,8 @@ def get_geo_accidents(
         dff = dff[dff["road_type"].str.lower() == road_type.lower()]
 
     # Take representative sample if exceeds limit for high-FPS client rendering
-    if len(dff) > sample_limit:
-        dff = dff.sample(n=sample_limit, random_state=42)
+    if len(dff) > effective_limit:
+        dff = dff.sample(n=effective_limit, random_state=42)
 
     cols = ["accident_id", "city", "latitude", "longitude", "accident_severity", "road_type", "weather", "hour", "lanes", "traffic_signal"]
     points = dff[cols].replace({np.nan: None}).to_dict(orient="records")
@@ -424,7 +426,47 @@ def get_geo_hotspots(
 
     clustered_count = int((clustered_df["cluster_id"] != -1).sum()) if "cluster_id" in clustered_df.columns else 0
     noise_count = int((clustered_df["cluster_id"] == -1).sum()) if "cluster_id" in clustered_df.columns else 0
-    hotspots_list = hotspots.replace({np.nan: None}).to_dict(orient="records")
+    
+    # Enrich each hotspot with both alias sets for total frontend compatibility
+    hotspots_list = []
+    for _, row in hotspots.iterrows():
+        c_lat = float(row.get("center_latitude", 0.0))
+        c_lon = float(row.get("center_longitude", 0.0))
+        c_size = int(row.get("cluster_size", 0))
+        fatal_c = int(row.get("fatal_count", 0))
+        major_c = int(row.get("major_count", 0))
+        minor_c = int(row.get("minor_count", 0))
+        r_type = str(row.get("top_road_type", "urban"))
+        w_type = str(row.get("top_weather", "clear"))
+        fatal_pct = float(row.get("fatal_percentage", 0.0))
+        fatal_r = round(fatal_pct / 100.0, 4) if fatal_pct > 0 else 0.0
+        
+        # Calculate cluster density per sqkm based on search radius
+        radius_m = float(effective_eps)
+        area_sqkm = max(0.01, 3.14159 * ((radius_m / 1000.0) ** 2))
+        density = round(c_size / area_sqkm, 1)
+
+        hotspots_list.append({
+            "cluster_id": int(row.get("cluster_id", 0)),
+            "city": str(row.get("city", city_filter or "Metro")),
+            "size": c_size,
+            "cluster_size": c_size,
+            "centroid_lat": c_lat,
+            "center_latitude": c_lat,
+            "centroid_lon": c_lon,
+            "center_longitude": c_lon,
+            "fatal_count": fatal_c,
+            "major_count": major_c,
+            "minor_count": minor_c,
+            "top_road_type": r_type,
+            "dominant_road": r_type,
+            "top_weather": w_type,
+            "dominant_weather": w_type,
+            "fatal_percentage": fatal_pct,
+            "fatal_ratio": fatal_r,
+            "radius_m": radius_m,
+            "density_per_sqkm": density
+        })
 
     return {
         "hotspots": hotspots_list,
@@ -771,6 +813,7 @@ def get_model_evaluation():
     }
 
 
+@app.post("/api/predict")
 @app.post("/api/model/predict")
 def predict_severity(payload: PredictionInput):
     """Execute live severity inference using strictly pre-accident features."""

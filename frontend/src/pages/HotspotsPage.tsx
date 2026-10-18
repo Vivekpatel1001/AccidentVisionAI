@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Circle, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import {
@@ -6,26 +6,37 @@ import {
   AlertTriangle,
   Sliders,
   Compass,
-  ArrowUpDown,
   Navigation,
   Info,
   Layers,
   Sparkles,
-  CheckCircle2
+  ShieldCheck,
+  Activity
 } from 'lucide-react';
 import { getHotspots } from '../services/api';
 import { useCityFilter } from '../context/CityContext';
 import { HotspotItem } from '../types/api';
-import { MetricCard } from '../components/common/MetricCard';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
-const MapFlyTo: React.FC<{ center: [number, number] | null }> = ({ center }) => {
+const CITY_COORDINATES: Record<string, [number, number]> = {
+  'Bangalore': [12.9716, 77.5946],
+  'Bengaluru': [12.9716, 77.5946],
+  'Mumbai': [19.0760, 72.8777],
+  'Delhi': [28.7041, 77.1025],
+  'Kolkata': [22.5726, 88.3639],
+  'Chennai': [13.0827, 80.2707],
+  'Hyderabad': [17.3850, 78.4867],
+  'Pune': [18.5204, 73.8567],
+  'Ahmedabad': [23.0225, 72.5714],
+};
+
+const MapFlyTo: React.FC<{ center: [number, number] | null; zoom?: number }> = ({ center, zoom = 13 }) => {
   const map = useMap();
-  React.useEffect(() => {
-    if (center) {
-      map.flyTo(center, 13, { duration: 1.2 });
+  useEffect(() => {
+    if (center && typeof center[0] === 'number' && typeof center[1] === 'number' && !isNaN(center[0]) && !isNaN(center[1])) {
+      map.flyTo(center, zoom, { duration: 1.2 });
     }
-  }, [center, map]);
+  }, [center, zoom, map]);
   return null;
 };
 
@@ -41,51 +52,98 @@ export const HotspotsPage: React.FC = () => {
     queryFn: () => getHotspots(selectedCity, minPoints, epsKm),
   });
 
-  const hotspots = data?.hotspots || [];
+  const rawHotspots: HotspotItem[] = data?.hotspots || [];
+
+  // Robustly normalize and filter valid hotspots with fallback for any schema
+  const hotspots = rawHotspots
+    .map((h: any) => {
+      const lat = typeof h.centroid_lat === 'number' ? h.centroid_lat : typeof h.center_latitude === 'number' ? h.center_latitude : null;
+      const lon = typeof h.centroid_lon === 'number' ? h.centroid_lon : typeof h.center_longitude === 'number' ? h.center_longitude : null;
+      const count = typeof h.size === 'number' ? h.size : typeof h.cluster_size === 'number' ? h.cluster_size : 0;
+      const fatal_count = typeof h.fatal_count === 'number' ? h.fatal_count : 0;
+      const fatal_ratio = typeof h.fatal_ratio === 'number' ? h.fatal_ratio : (typeof h.fatal_percentage === 'number' ? h.fatal_percentage / 100 : 0);
+      const road = h.dominant_road || h.top_road_type || 'Urban Arterial';
+      const weather = h.dominant_weather || h.top_weather || 'Clear';
+      const radius = h.radius_m || epsKm * 1000;
+      const density = h.density_per_sqkm || (radius > 0 ? Number((count / (Math.PI * Math.pow(radius / 1000, 2))).toFixed(1)) : 0);
+
+      return {
+        ...h,
+        centroid_lat: lat,
+        center_latitude: lat,
+        centroid_lon: lon,
+        center_longitude: lon,
+        size: count,
+        cluster_size: count,
+        fatal_count,
+        fatal_ratio,
+        fatal_percentage: fatal_ratio * 100,
+        dominant_road: road,
+        top_road_type: road,
+        dominant_weather: weather,
+        top_weather: weather,
+        radius_m: radius,
+        density_per_sqkm: density,
+      };
+    })
+    .filter((h) => h.centroid_lat !== null && h.centroid_lon !== null && !isNaN(h.centroid_lat) && !isNaN(h.centroid_lon));
+
+  // Determine initial center
+  const defaultCityCenter: [number, number] = (selectedCity && CITY_COORDINATES[selectedCity])
+    ? CITY_COORDINATES[selectedCity]
+    : [20.5937, 78.9629];
+
+  const mapCenter: [number, number] = hotspots.length > 0
+    ? [hotspots[0].centroid_lat, hotspots[0].centroid_lon]
+    : defaultCityCenter;
+
+  const mapZoom = hotspots.length > 0 ? (selectedCity ? 12 : 6) : (selectedCity ? 11 : 5);
 
   const handleFocusHotspot = (h: HotspotItem) => {
     setSelectedHotspot(h);
-    setFlyToCenter([h.centroid_lat, h.centroid_lon]);
+    if (h.centroid_lat && h.centroid_lon) {
+      setFlyToCenter([h.centroid_lat, h.centroid_lon]);
+    }
   };
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold mb-2">
             <Flame className="w-3.5 h-3.5" />
-            <span>DBSCAN High-Density Collision Corridors</span>
+            <span>Unsupervised Geospatial Intelligence</span>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Accident Hotspot Identification
           </h1>
-          <p className="text-slate-600 text-sm mt-1 max-w-2xl">
-            Unsupervised density-based spatial clustering (DBSCAN) using geodesic haversine metrics to uncover recurring crash blackspots.
+          <p className="text-slate-600 text-sm mt-1 max-w-2xl leading-relaxed">
+            DBSCAN density clustering with geodesic haversine distance metric, identifying high-frequency collision corridors across India's metropolitan road networks.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700">
-          <span>Active City:</span>
+        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 shrink-0">
+          <span className="text-slate-500">Active Zone:</span>
           <span className="font-extrabold text-blue-600">{selectedCity || 'All 8 Metros'}</span>
         </div>
       </div>
 
       {/* Parameter Controls Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+          <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
             <Sliders className="w-4 h-4" />
           </div>
           <div>
             <h2 className="text-sm font-bold text-slate-900">DBSCAN Spatial Parameters</h2>
-            <p className="text-xs text-slate-500">Fine-tune cluster search radius and minimum incident threshold</p>
+            <p className="text-xs text-slate-500">Tune spatial cluster radius (ε) and minimum sample threshold (MinPts)</p>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="flex items-center space-x-3 text-xs">
-            <span className="text-slate-600 font-medium">Search Radius:</span>
+            <span className="text-slate-600 font-medium">Search Radius (ε):</span>
             <input
               type="range"
               min="0.4"
@@ -95,7 +153,7 @@ export const HotspotsPage: React.FC = () => {
               onChange={(e) => setEpsKm(parseFloat(e.target.value))}
               className="w-32 accent-blue-600 cursor-pointer"
             />
-            <span className="font-mono text-slate-900 font-bold w-16 px-2 py-1 bg-slate-100 rounded text-center">
+            <span className="font-mono text-slate-900 font-bold w-16 px-2 py-1 bg-slate-100 rounded text-center border border-slate-200">
               {(epsKm * 1000).toFixed(0)}m
             </span>
           </div>
@@ -111,7 +169,7 @@ export const HotspotsPage: React.FC = () => {
               onChange={(e) => setMinPoints(parseInt(e.target.value))}
               className="w-28 accent-blue-600 cursor-pointer"
             />
-            <span className="font-mono text-slate-900 font-bold w-12 px-2 py-1 bg-slate-100 rounded text-center">
+            <span className="font-mono text-slate-900 font-bold w-12 px-2 py-1 bg-slate-100 rounded text-center border border-slate-200">
               {minPoints}
             </span>
           </div>
@@ -120,33 +178,37 @@ export const HotspotsPage: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-1">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-1">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Identified Hotspots</div>
-          <div className="text-3xl font-extrabold text-amber-600 font-mono">
+          <div className="text-3xl font-black text-amber-600 font-mono">
             {data?.total_clusters ?? hotspots.length}
           </div>
           <div className="text-xs text-slate-500">Dense corridor clusters</div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-1">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-1">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Clustered Incidents</div>
-          <div className="text-3xl font-extrabold text-blue-600 font-mono">
-            {typeof data?.clustered_accidents_count === 'number' ? data.clustered_accidents_count.toLocaleString() : hotspots.reduce((acc, h) => acc + h.size, 0).toLocaleString()}
+          <div className="text-3xl font-black text-blue-600 font-mono">
+            {typeof data?.clustered_accidents_count === 'number'
+              ? data.clustered_accidents_count.toLocaleString()
+              : hotspots.reduce((acc, h) => acc + (h.size || 0), 0).toLocaleString()}
           </div>
-          <div className="text-xs text-slate-500">Recurring crash locations</div>
+          <div className="text-xs text-slate-500">Recurring collision locations</div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-1">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dispersed / Isolated</div>
-          <div className="text-3xl font-extrabold text-slate-700 font-mono">
-            {typeof data?.noise_accidents_count === 'number' ? data.noise_accidents_count.toLocaleString() : 'Baseline'}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-1">
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Isolated / Dispersed</div>
+          <div className="text-3xl font-black text-slate-700 font-mono">
+            {typeof data?.noise_accidents_count === 'number'
+              ? data.noise_accidents_count.toLocaleString()
+              : 'Baseline'}
           </div>
-          <div className="text-xs text-slate-500">Non-clustered single occurrences</div>
+          <div className="text-xs text-slate-500">Non-clustered single events</div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-1">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-1">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Top Danger Corridor</div>
-          <div className="text-3xl font-extrabold text-red-600 font-mono truncate">
+          <div className="text-3xl font-black text-red-600 font-mono truncate">
             {hotspots.length > 0 ? `${hotspots[0].size} Crashes` : 'Monitoring'}
           </div>
           <div className="text-xs text-slate-500 truncate">
@@ -157,12 +219,12 @@ export const HotspotsPage: React.FC = () => {
 
       {/* Split View: Map + Hotspots Table */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Interactive Cluster Map (6 cols) */}
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm h-[560px] relative flex flex-col">
-          <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between z-10">
+        {/* Interactive Cluster Map (7 cols) */}
+        <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-sm h-[580px] relative flex flex-col">
+          <div className="p-3.5 bg-slate-50/90 border-b border-slate-200 flex items-center justify-between z-10">
             <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
               <Navigation className="w-3.5 h-3.5 text-blue-600" />
-              Hotspot Spatial Map (Real CartoDB Voyager Tiles)
+              Hotspot Spatial Map (Real OpenStreetMap Telemetry)
             </span>
             <span className="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
               {hotspots.length} Clusters Plotted
@@ -177,23 +239,24 @@ export const HotspotsPage: React.FC = () => {
             )}
 
             <MapContainer
-              center={
-                hotspots.length > 0
-                  ? [hotspots[0].centroid_lat, hotspots[0].centroid_lon]
-                  : [20.5937, 78.9629]
-              }
-              zoom={hotspots.length > 0 ? 11 : 5}
+              key={`${selectedCity || 'all'}-${epsKm}-${minPoints}`}
+              center={mapCenter}
+              zoom={mapZoom}
               className="h-full w-full"
             >
               <MapFlyTo center={flyToCenter} />
+              
+              {/* Clean, Official OpenStreetMap Tiles (100% Free, Zero Watermark) */}
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 maxZoom={19}
               />
 
               {hotspots.map((h) => {
                 const isSelected = selectedHotspot?.cluster_id === h.cluster_id;
+                const hasHighFatal = (h.fatal_count || 0) > 0;
+
                 return (
                   <React.Fragment key={h.cluster_id}>
                     {/* Outer Cluster Buffer Circle */}
@@ -201,38 +264,40 @@ export const HotspotsPage: React.FC = () => {
                       center={[h.centroid_lat, h.centroid_lon]}
                       radius={h.radius_m || epsKm * 1000}
                       pathOptions={{
-                        color: isSelected ? '#2563EB' : '#D97706',
-                        fillColor: '#F59E0B',
+                        color: isSelected ? '#2563EB' : hasHighFatal ? '#EF4444' : '#D97706',
+                        fillColor: hasHighFatal ? '#F87171' : '#F59E0B',
                         fillOpacity: isSelected ? 0.35 : 0.18,
                         weight: isSelected ? 2.5 : 1.5,
                       }}
                     />
 
-                    {/* Centroid Point */}
+                    {/* Centroid Marker */}
                     <CircleMarker
                       center={[h.centroid_lat, h.centroid_lon]}
-                      radius={Math.min(18, Math.max(7, Math.sqrt(h.size) * 2.2))}
+                      radius={Math.min(20, Math.max(8, Math.sqrt(h.size) * 2.4))}
                       pathOptions={{
                         color: '#FFFFFF',
-                        fillColor: h.fatal_count > 2 ? '#EF4444' : '#F59E0B',
+                        fillColor: hasHighFatal ? '#DC2626' : '#D97706',
                         fillOpacity: 0.95,
                         weight: 2,
                       }}
                       eventHandlers={{
-                        click: () => setSelectedHotspot(h),
+                        click: () => handleFocusHotspot(h),
                       }}
                     >
-                      <Tooltip direction="top">
-                        <div className="text-xs font-sans p-1">
-                          <div className="font-bold text-slate-900">
-                            Cluster #{h.cluster_id} ({h.city})
+                      <Tooltip direction="top" offset={[0, -6]}>
+                        <div className="text-xs font-sans p-1.5 min-w-[180px]">
+                          <div className="font-black text-slate-900 border-b border-slate-100 pb-1 mb-1 flex items-center justify-between">
+                            <span>Cluster #{h.cluster_id}</span>
+                            <span className="text-blue-600 font-bold">{h.city}</span>
                           </div>
-                          <div className="text-slate-600 mt-0.5">Total Incidents: {h.size}</div>
-                          <div className="text-red-600 font-semibold">
+                          <div className="text-slate-600 font-medium">Total Collisions: <span className="font-bold text-slate-900">{h.size}</span></div>
+                          <div className="text-red-600 font-bold mt-0.5">
                             Fatal Crashes: {h.fatal_count} ({(h.fatal_ratio * 100).toFixed(1)}%)
                           </div>
-                          <div className="text-slate-500 font-mono text-[11px] mt-0.5">
-                            Dominant: {h.dominant_road}
+                          <div className="text-slate-500 text-[11px] mt-1 pt-1 border-t border-slate-100 flex items-center justify-between">
+                            <span>{h.dominant_road}</span>
+                            <span className="font-mono">{h.density_per_sqkm} /km²</span>
                           </div>
                         </div>
                       </Tooltip>
@@ -245,48 +310,56 @@ export const HotspotsPage: React.FC = () => {
         </div>
 
         {/* Hotspots Ranked Registry (5 cols) */}
-        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm flex flex-col h-[560px]">
-          <div className="p-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <div className="lg:col-span-5 bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-sm flex flex-col h-[580px]">
+          <div className="p-3.5 bg-slate-50/90 border-b border-slate-200 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
               <Flame className="w-3.5 h-3.5 text-red-600" />
               Ranked Hazard Corridors
             </span>
-            <span className="text-xs text-slate-500 font-medium">Click to Inspect</span>
+            <span className="text-xs text-slate-500 font-medium">Click to Zoom</span>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
             {hotspots.length > 0 ? (
               hotspots.map((h, idx) => {
                 const isSelected = selectedHotspot?.cluster_id === h.cluster_id;
+                const hasHighFatal = (h.fatal_count || 0) > 0;
+
                 return (
                   <button
                     key={h.cluster_id}
                     onClick={() => handleFocusHotspot(h)}
-                    className={`w-full p-3 rounded-xl text-left transition-all ${
+                    className={`w-full p-3.5 rounded-xl text-left transition-all ${
                       isSelected
-                        ? 'bg-blue-50 border border-blue-200 shadow-sm'
-                        : 'bg-white hover:bg-slate-50 border border-transparent'
+                        ? 'bg-blue-50/80 border border-blue-300 shadow-sm ring-1 ring-blue-300'
+                        : 'bg-white hover:bg-slate-50 border border-slate-100'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center space-x-2">
-                        <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 font-mono font-bold flex items-center justify-center text-[10px]">
+                        <span className={`w-5 h-5 rounded-full font-mono font-bold flex items-center justify-center text-[10px] ${
+                          hasHighFatal ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
+                        }`}>
                           #{idx + 1}
                         </span>
                         <span className="font-bold text-xs text-slate-900">{h.city}</span>
                       </div>
-                      <span className="text-[11px] font-bold font-mono px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                      <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded-full border ${
+                        hasHighFatal
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
                         {Math.round((h.fatal_ratio || 0) * 100)}% Fatal
                       </span>
                     </div>
 
-                    <div className="text-xs font-medium text-slate-700">
+                    <div className="text-xs font-semibold text-slate-800">
                       {h.dominant_road || 'Expressway / Arterial Corridor'}
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2 font-mono">
                       <span>{h.size} verified crashes</span>
-                      <span>Density: {h.density_per_sqkm ? `${h.density_per_sqkm.toFixed(1)}/km²` : 'High'}</span>
+                      <span className="text-slate-600 font-bold">{h.density_per_sqkm ? `${h.density_per_sqkm} /km²` : 'High Density'}</span>
                     </div>
                   </button>
                 );
@@ -294,8 +367,8 @@ export const HotspotsPage: React.FC = () => {
             ) : (
               <div className="p-8 text-center text-xs text-slate-500 space-y-2">
                 <Compass className="w-8 h-8 mx-auto text-slate-400" />
-                <p>No dense clusters found under current thresholds.</p>
-                <p className="text-[11px] text-slate-400">Try increasing search radius or lowering min crashes above.</p>
+                <p className="font-bold text-slate-700">No dense clusters found under current thresholds.</p>
+                <p className="text-[11px] text-slate-400">Try increasing search radius (ε) or lowering min crashes above.</p>
               </div>
             )}
           </div>
