@@ -45,7 +45,7 @@ export const getGeoAccidents = async (
   const { data } = await api.get('/geo/accidents', {
     params: { city, severity, limit },
   });
-  return data;
+  return Array.isArray(data) ? data : (data?.points || []);
 };
 
 export const getHotspots = async (

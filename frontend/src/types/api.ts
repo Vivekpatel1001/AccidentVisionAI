@@ -8,6 +8,10 @@ export interface OverviewStats {
   date_range_start: string;
   date_range_end: string;
   osm_enrichment_pct: number;
+  safest_window?: string;
+  peak_window?: string;
+  peak_hour?: number;
+  safest_hour?: number;
   model_validation_accuracy: number;
   model_balanced_accuracy: number;
   model_fatal_recall: number;

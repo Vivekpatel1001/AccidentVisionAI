@@ -99,10 +99,18 @@ export const OverviewPage: React.FC = () => {
     },
   });
 
-  // Initial calculation on mount
+  // Live calculate whenever ANY trip parameter or city changes
   useEffect(() => {
     mutation.mutate(form);
-  }, [form.city]);
+  }, [
+    form.city,
+    form.road_type,
+    form.hour,
+    form.weather,
+    form.traffic_signal,
+    form.traffic_density,
+    form.is_weekend,
+  ]);
 
   const handleCalculate = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -119,16 +127,26 @@ export const OverviewPage: React.FC = () => {
     setForm((prev) => ({ ...prev, hour: hourVal, is_peak_hour: isPeak }));
   };
 
-  // Compute a customer-friendly Risk Score (0 - 100)
+  // Compute a calibrated, customer-friendly Risk Score (0 - 100)
   const getRiskScore = () => {
-    if (!predictionResult) return 45;
-    const fatalP = predictionResult.probabilities['Fatal'] || 0.13;
-    const severeP = predictionResult.probabilities['Severe'] || 0.35;
-    const minorP = predictionResult.probabilities['Minor'] || 0.52;
+    if (!predictionResult) return 42;
+    const fatalP = predictionResult.probabilities['Fatal'] ?? 0.15;
+    const severeP = predictionResult.probabilities['Severe'] ?? 0.32;
+    const minorP = predictionResult.probabilities['Minor'] ?? 0.53;
 
-    // Severity risk index formula
-    const rawScore = fatalP * 380 + severeP * 110 + minorP * 20;
-    return Math.min(95, Math.max(15, Math.round(rawScore)));
+    // Base score from multi-class probabilities (calibrated for real-world driving risk):
+    let score = (fatalP * 160) + (severeP * 70) + (minorP * 15) - 18;
+
+    // Environmental & infrastructure context modifiers
+    if (form.road_type === 'Highway') score += 6;
+    if (!form.traffic_signal) score += 5;
+    if (form.weather === 'Rainy' || form.weather === 'Foggy') score += 7;
+    if (form.traffic_density === 'High') score += 4;
+    if (form.hour >= 22 || form.hour <= 4) score += 8; // Late night high-speed hazard
+    else if (form.hour >= 18 && form.hour <= 21) score += 5; // Evening peak traffic
+    else if (form.hour >= 11 && form.hour <= 15) score -= 4; // Clear midday travel
+
+    return Math.min(95, Math.max(18, Math.round(score)));
   };
 
   const riskScore = getRiskScore();
@@ -693,15 +711,15 @@ export const OverviewPage: React.FC = () => {
           <div className="bg-bg-card border border-border-dark rounded-xl p-4 shadow-card-dark">
             <div className="text-[11px] font-semibold text-text-muted uppercase">Safest Travel Window</div>
             <div className="text-2xl font-extrabold text-accent-success mt-1">
-              10 AM – 3 PM
+              {overviewData?.safest_window || '10:00 – 14:00'}
             </div>
-            <div className="text-[11px] text-text-subtle mt-0.5">62% lower fatal rate</div>
+            <div className="text-[11px] text-text-subtle mt-0.5">Lowest accident volume</div>
           </div>
 
           <div className="bg-bg-card border border-border-dark rounded-xl p-4 shadow-card-dark">
             <div className="text-[11px] font-semibold text-text-muted uppercase">Peak Collision Window</div>
             <div className="text-2xl font-extrabold text-accent-warning mt-1">
-              6 PM – 9 PM
+              {overviewData?.peak_window || '18:00 – 21:00'}
             </div>
             <div className="text-[11px] text-text-subtle mt-0.5">Highest crash concentration</div>
           </div>

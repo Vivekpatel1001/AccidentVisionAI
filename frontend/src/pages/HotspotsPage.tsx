@@ -99,17 +99,17 @@ export const HotspotsPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="IDENTIFIED HOTSPOTS"
-          value={data ? data.total_clusters : '0'}
+          value={data?.total_clusters ?? 0}
           subtitle="Dense corridor clusters"
           icon={Flame}
           variant="warning"
         />
         <MetricCard
           title="CLUSTERED INCIDENTS"
-          value={data ? data.clustered_accidents_count.toLocaleString() : '0'}
+          value={typeof data?.clustered_accidents_count === 'number' ? data.clustered_accidents_count.toLocaleString() : '0'}
           subtitle={
-            data && (data.clustered_accidents_count + data.noise_accidents_count > 0)
-              ? `${((data.clustered_accidents_count / (data.clustered_accidents_count + data.noise_accidents_count)) * 100).toFixed(1)}% of total volume`
+            data && ((data.clustered_accidents_count || 0) + (data.noise_accidents_count || 0) > 0)
+              ? `${(((data.clustered_accidents_count || 0) / ((data.clustered_accidents_count || 0) + (data.noise_accidents_count || 0))) * 100).toFixed(1)}% of total volume`
               : 'Clustered share'
           }
           icon={Layers}
@@ -117,7 +117,7 @@ export const HotspotsPage: React.FC = () => {
         />
         <MetricCard
           title="DISPERSED / NOISE INCIDENTS"
-          value={data ? data.noise_accidents_count.toLocaleString() : '0'}
+          value={typeof data?.noise_accidents_count === 'number' ? data.noise_accidents_count.toLocaleString() : '0'}
           subtitle="Non-clustered baseline points"
           icon={Compass}
           variant="default"

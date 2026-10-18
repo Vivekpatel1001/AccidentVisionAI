@@ -118,7 +118,7 @@ export const AccidentMapPage: React.FC = () => {
             {isLoading ? (
               <span className="animate-pulse text-accent-primary">Loading incidents...</span>
             ) : (
-              <span>{points ? `${points.length.toLocaleString()} plotted` : '0 points'}</span>
+              <span>{points && typeof points.length === 'number' ? `${points.length.toLocaleString()} plotted` : '0 points'}</span>
             )}
           </div>
         </div>
