@@ -1,23 +1,23 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
+import { Footer } from './Footer';
 
 export const Layout: React.FC = () => {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-bg-main text-text-main font-sans">
-      {/* Fixed Sidebar */}
-      <Sidebar />
+    <div className="min-h-screen w-full bg-bg-main text-text-main font-sans flex flex-col selection:bg-accent-primary/20 selection:text-accent-primary">
+      {/* Top Classic Navigation Header */}
+      <Navbar />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
-        <Navbar />
+      {/* Main Viewport Container */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Outlet />
+      </main>
 
-        {/* Scrollable Viewport */}
-        <main className="flex-1 overflow-y-auto bg-bg-main p-6 space-y-6">
-          <Outlet />
-        </main>
-      </div>
+      {/* Clean Reassuring Customer Footer */}
+      <Footer />
     </div>
   );
 };
+
+export default Layout;
