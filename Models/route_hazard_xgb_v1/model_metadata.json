@@ -1,0 +1,168 @@
+{
+  "project": "AccidentVision AI",
+  "model_name": "XGBoost Classifier (Tuned) \u2014 Corridor Hazard Occurrence Model",
+  "version": "route_hazard_xgb_v1",
+  "purpose": "High-accuracy road corridor accident hazard and blackspot prediction",
+  "target": "is_high_hazard_corridor",
+  "classes": [
+    "Low Hazard",
+    "High Hazard"
+  ],
+  "numeric_features": [
+    "latitude",
+    "longitude",
+    "hour",
+    "is_weekend",
+    "lanes",
+    "traffic_signal",
+    "temperature",
+    "is_peak_hour",
+    "osm_road_length_m",
+    "distance_to_road_m",
+    "population_density_1km",
+    "log_population_density",
+    "design_speed_kmh",
+    "kinetic_energy_index",
+    "is_divided_carriageway"
+  ],
+  "categorical_features": [
+    "city",
+    "road_type",
+    "day_of_week",
+    "weather",
+    "visibility",
+    "traffic_density",
+    "osm_highway"
+  ],
+  "all_features": [
+    "latitude",
+    "longitude",
+    "hour",
+    "is_weekend",
+    "lanes",
+    "traffic_signal",
+    "temperature",
+    "is_peak_hour",
+    "osm_road_length_m",
+    "distance_to_road_m",
+    "population_density_1km",
+    "log_population_density",
+    "design_speed_kmh",
+    "kinetic_energy_index",
+    "is_divided_carriageway",
+    "city",
+    "road_type",
+    "day_of_week",
+    "weather",
+    "visibility",
+    "traffic_density",
+    "osm_highway"
+  ],
+  "training_records": 12205,
+  "validation_records": 6061,
+  "holdout_records": 1734,
+  "validation_metrics": {
+    "accuracy": 0.8779079359841611,
+    "roc_auc": 0.9541678646008956,
+    "f1_score": 0.8272642390289449,
+    "balanced_accuracy": 0.8639955395436609,
+    "training_time_sec": 0.96
+  },
+  "holdout_metrics": {
+    "accuracy": 0.8863898500576701,
+    "roc_auc": 0.9608541274325173,
+    "f1_score": 0.85041761579347,
+    "balanced_accuracy": 0.876647834274953
+  },
+  "all_model_benchmarks": {
+    "Random Forest": {
+      "accuracy": 0.8604190727602706,
+      "roc_auc": 0.941538443336232,
+      "f1_score": 0.7955534074432092,
+      "balanced_accuracy": 0.8376033624978556,
+      "training_time_sec": 0.89
+    },
+    "CatBoost Classifier": {
+      "accuracy": 0.86553374030688,
+      "roc_auc": 0.9483248442685501,
+      "f1_score": 0.8094458732756605,
+      "balanced_accuracy": 0.8501955738548637,
+      "training_time_sec": 4.11
+    },
+    "XGBoost Classifier (Tuned)": {
+      "accuracy": 0.8779079359841611,
+      "roc_auc": 0.9541678646008956,
+      "f1_score": 0.8272642390289449,
+      "balanced_accuracy": 0.8639955395436609,
+      "training_time_sec": 0.96
+    }
+  },
+  "top_features": [
+    {
+      "feature": "city_Mumbai",
+      "importance": 0.2741050720214844
+    },
+    {
+      "feature": "city_Kolkata",
+      "importance": 0.22807326912879944
+    },
+    {
+      "feature": "city_Chandigarh",
+      "importance": 0.18111716210842133
+    },
+    {
+      "feature": "city_Chennai",
+      "importance": 0.10192891210317612
+    },
+    {
+      "feature": "longitude",
+      "importance": 0.029695384204387665
+    },
+    {
+      "feature": "city_Hyderabad",
+      "importance": 0.02141624316573143
+    },
+    {
+      "feature": "city_Bangalore",
+      "importance": 0.019454775378108025
+    },
+    {
+      "feature": "city_Delhi",
+      "importance": 0.019267311319708824
+    },
+    {
+      "feature": "city_Pune",
+      "importance": 0.01739945076406002
+    },
+    {
+      "feature": "latitude",
+      "importance": 0.011431930586695671
+    },
+    {
+      "feature": "osm_highway_residential",
+      "importance": 0.00881721917539835
+    },
+    {
+      "feature": "osm_highway_primary",
+      "importance": 0.006016567349433899
+    },
+    {
+      "feature": "distance_to_road_m",
+      "importance": 0.004846091847866774
+    },
+    {
+      "feature": "osm_highway_trunk",
+      "importance": 0.004359177313745022
+    },
+    {
+      "feature": "log_population_density",
+      "importance": 0.0035615621600300074
+    }
+  ],
+  "data_sources": [
+    "AccidentVision Master OSM Telemetry (20,000 records)",
+    "WorldPop 1-km Global Demographic Density (University of Southampton)",
+    "OpenStreetMap Road Classification & IRC:73 Design Standards"
+  ],
+  "created_utc": "2026-10-22T17:48:50.049453+00:00"
+}
