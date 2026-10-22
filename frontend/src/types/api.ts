@@ -202,6 +202,18 @@ export interface PredictRequest {
   osm_highway?: string;
   osm_road_length_m?: number;
   distance_to_road_m?: number;
+  vehicle_type?: string;
+  is_divided_carriageway?: boolean;
+  cruising_speed_kmh?: number;
+}
+
+export interface CorridorHazardInfo {
+  is_high_hazard: boolean;
+  hazard_probability: number;
+  hazard_tier: string;
+  population_density_per_sqkm: number;
+  design_speed_kmh: number;
+  kinetic_energy_index: number;
 }
 
 export interface PredictResponse {
@@ -212,6 +224,8 @@ export interface PredictResponse {
     Severe: number;
     Fatal: number;
   };
+  corridor_hazard?: CorridorHazardInfo;
+  model_accuracy?: string;
   pre_accident_features_verified: boolean;
   warning?: string;
   explanation: string;

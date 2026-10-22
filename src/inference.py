@@ -21,6 +21,7 @@ from src.preprocessing import (
 )
 from src.data_validation import POST_ACCIDENT_COLUMNS
 
+BEST_MODEL_DIR = r"D:\Studyy\Accident Vission AI\Models\severity_best_v1"
 XGBOOST_MODEL_DIR = r"D:\Studyy\Accident Vission AI\Models\severity_xgboost_v1"
 V2_MODEL_DIR = r"D:\Studyy\Accident Vission AI\Models\severity_v2"
 LEGACY_MODEL_DIR = r"D:\Studyy\Accident Vission AI\Models\severity_extra_trees_v1"
@@ -43,11 +44,11 @@ class SeverityPredictor:
 
     def _find_best_model_dir(self) -> str:
         """Find the most advanced trained model directory."""
-        for candidate in [XGBOOST_MODEL_DIR, V2_MODEL_DIR, LEGACY_MODEL_DIR]:
+        for candidate in [BEST_MODEL_DIR, XGBOOST_MODEL_DIR, V2_MODEL_DIR, LEGACY_MODEL_DIR]:
             p = os.path.join(candidate, "model_pipeline.joblib")
             if os.path.exists(p):
                 return candidate
-        return V2_MODEL_DIR
+        return BEST_MODEL_DIR
 
     def _load(self):
         """Load the model pipeline, encoder, and metadata."""
