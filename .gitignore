@@ -58,3 +58,5 @@ frontend/dist/
 frontend/.vite/
 node_modules/
 
+
+catboost_info/
