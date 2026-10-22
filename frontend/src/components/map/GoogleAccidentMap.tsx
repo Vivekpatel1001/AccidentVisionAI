@@ -77,8 +77,8 @@ export const GoogleAccidentMap: React.FC<GoogleAccidentMapProps> = ({
       return String(pt.accident_severity).toLowerCase() === severityFilter.toLowerCase();
     });
 
-    // Sample down to max 800 points for smooth client rendering
-    const displayPoints = filteredPoints.length > 800 ? filteredPoints.slice(0, 800) : filteredPoints;
+    // Sample down to max 1,500 points for comprehensive corridor density and smooth client rendering
+    const displayPoints = filteredPoints.length > 1500 ? filteredPoints.slice(0, 1500) : filteredPoints;
 
     displayPoints.forEach((pt) => {
       if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') return;

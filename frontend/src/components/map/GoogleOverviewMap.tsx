@@ -78,8 +78,8 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
       return actual === target;
     });
 
-    // Sample down if very large for smooth 60fps Google Map rendering
-    const displayPoints = filteredPoints.length > 500 ? filteredPoints.slice(0, 500) : filteredPoints;
+    // Display up to 1,500 points for comprehensive roadway coverage with smooth 60fps rendering
+    const displayPoints = filteredPoints.length > 1500 ? filteredPoints.slice(0, 1500) : filteredPoints;
 
     displayPoints.forEach((pt) => {
       if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') return;
