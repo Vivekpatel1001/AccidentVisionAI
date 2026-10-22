@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
+import { GoogleOverviewMap } from '../components/map/GoogleOverviewMap';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -66,15 +66,6 @@ const TIME_PRESETS = [
   { label: 'Evening Peak', hours: 19, badge: 'High Collision' },
   { label: 'Late Night', hours: 23, badge: 'High Speed' },
 ];
-
-// Helper to recenter the map smoothly
-const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ center, zoom }) => {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, zoom, { animate: true });
-  }, [center, zoom, map]);
-  return null;
-};
 
 export const OverviewPage: React.FC = () => {
   const { selectedCity, setSelectedCity } = useCityFilter();
@@ -772,7 +763,7 @@ export const OverviewPage: React.FC = () => {
               Live Collision Blackspots in {form.city} ({form.road_type} Corridors)
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-              Interactive OpenStreetMap displaying verified historical crash records matching your chosen city and roadway classification.
+              Interactive Google Maps telemetry displaying verified historical crash records matching your chosen city and roadway classification.
             </p>
           </div>
 
@@ -796,71 +787,25 @@ export const OverviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Map Container */}
+        {/* Google Map Container */}
         <div className="relative h-[480px] w-full rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
-          {isMapLoading && (
-            <div className="absolute inset-0 z-[500] bg-white/80 backdrop-blur-sm flex items-center justify-center">
-              <LoadingSpinner message={`Loading ${form.city} geospatial telemetry...`} />
-            </div>
-          )}
-
-          <MapContainer
-            center={cityCoords}
-            zoom={zoomLevel}
-            className="h-full w-full"
-            zoomControl={true}
-          >
-            <MapController center={cityCoords} zoom={zoomLevel} />
-
-            {/* Official OpenStreetMap Tiles (100% Free, Zero Watermark, Full Road Telemetry) */}
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              maxZoom={19}
-            />
-
-            {mapPoints.map((pt) => {
-              const color = getPointColor(pt.accident_severity);
-              const isFatal = String(pt.accident_severity).toLowerCase() === 'fatal';
-              const radius = isFatal ? 7 : 5;
-
-              return (
-                <CircleMarker
-                  key={pt.accident_id}
-                  center={[pt.latitude, pt.longitude]}
-                  radius={radius}
-                  pathOptions={{
-                    fillColor: color,
-                    fillOpacity: 0.9,
-                    color: '#FFFFFF',
-                    weight: 1.5,
-                  }}
-                  eventHandlers={{
-                    click: () => setSelectedMapPoint(pt),
-                  }}
-                >
-                  <Tooltip direction="top" offset={[0, -5]}>
-                    <div className="text-xs font-sans p-1">
-                      <div className="font-bold text-slate-900">{pt.city} ({pt.accident_severity})</div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
-                        {pt.road_type} • {pt.hour}:00 hrs • Weather: {pt.weather}
-                      </div>
-                    </div>
-                  </Tooltip>
-                </CircleMarker>
-              );
-            })}
-          </MapContainer>
+          <GoogleOverviewMap
+            points={rawPoints}
+            city={form.city}
+            roadType={form.road_type}
+            isLoading={isMapLoading}
+            onSelectPoint={setSelectedMapPoint}
+          />
 
           {/* Floating Points Count Pill */}
-          <div className="absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2">
+          <div className="absolute top-4 left-4 z-[10] bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2 pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
             <span>{mapPoints.length} Spots Plotted in {form.city} ({form.road_type})</span>
           </div>
 
           {/* Floating Selected Point Details */}
           {selectedMapPoint && (
-            <div className="absolute bottom-4 right-4 z-[1000] w-72 bg-white rounded-xl border border-slate-200 shadow-xl p-4 space-y-2 animate-in fade-in duration-150">
+            <div className="absolute bottom-4 right-4 z-[10] w-72 bg-white rounded-xl border border-slate-200 shadow-xl p-4 space-y-2 animate-in fade-in duration-150">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <span className="font-extrabold text-xs text-slate-900">
                   Crash Point #{selectedMapPoint.accident_id}

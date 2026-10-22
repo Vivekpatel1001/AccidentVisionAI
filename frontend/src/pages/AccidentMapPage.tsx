@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
+import { GoogleAccidentMap } from '../components/map/GoogleAccidentMap';
 import {
   MapPin,
   Filter,
@@ -20,30 +20,6 @@ import { useCityFilter } from '../context/CityContext';
 import { AccidentGeoPoint } from '../types/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
-const CITY_COORDINATES: Record<string, [number, number, number]> = {
-  Mumbai: [19.0760, 72.8777, 12],
-  Delhi: [28.6139, 77.2090, 11],
-  Bengaluru: [12.9716, 77.5946, 12],
-  Bangalore: [12.9716, 77.5946, 12],
-  Chennai: [13.0827, 80.2707, 12],
-  Pune: [18.5204, 73.8567, 12],
-  Hyderabad: [17.3850, 78.4867, 12],
-  Kolkata: [22.5726, 88.3639, 12],
-  Chandigarh: [30.7333, 76.7794, 13],
-};
-
-const DEFAULT_CENTER: [number, number] = [21.5, 78.5];
-const DEFAULT_ZOOM = 5;
-
-// Recenter component when city changes
-const MapRecenter: React.FC<{ center: [number, number]; zoom: number }> = ({ center, zoom }) => {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, zoom, { animate: true });
-  }, [center, zoom, map]);
-  return null;
-};
-
 export const AccidentMapPage: React.FC = () => {
   const { selectedCity, setSelectedCity } = useCityFilter();
   const [severityFilter, setSeverityFilter] = useState<string>('');
@@ -53,13 +29,6 @@ export const AccidentMapPage: React.FC = () => {
     queryKey: ['geo-accidents', selectedCity, severityFilter],
     queryFn: () => getGeoAccidents(selectedCity, severityFilter, 4000),
   });
-
-  const cityCoords = selectedCity && CITY_COORDINATES[selectedCity]
-    ? [CITY_COORDINATES[selectedCity][0], CITY_COORDINATES[selectedCity][1]] as [number, number]
-    : DEFAULT_CENTER;
-  const zoomLevel = selectedCity && CITY_COORDINATES[selectedCity]
-    ? CITY_COORDINATES[selectedCity][2]
-    : DEFAULT_ZOOM;
 
   const pointsList = Array.isArray(points) ? points : [];
 
@@ -151,59 +120,14 @@ export const AccidentMapPage: React.FC = () => {
 
         {/* Main Map Container */}
         <div className="flex-1 h-full w-full relative">
-          {isLoading && (
-            <div className="absolute inset-0 z-[500] bg-white/80 backdrop-blur-sm flex items-center justify-center">
-              <LoadingSpinner message="Loading geospatial accident blackspots..." />
-            </div>
-          )}
-
-          <MapContainer
-            center={cityCoords}
-            zoom={zoomLevel}
-            className="h-full w-full"
-            zoomControl={true}
-          >
-            <MapRecenter center={cityCoords} zoom={zoomLevel} />
-
-            {/* Official OpenStreetMap Tiles (100% Free, Zero Watermark, Full Road Telemetry) */}
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              maxZoom={19}
-            />
-
-            {pointsList.map((pt) => {
-              const color = getMarkerColor(pt.accident_severity);
-              const isFatal = String(pt.accident_severity).toLowerCase() === 'fatal';
-              const radius = isFatal ? 7 : 5;
-
-              return (
-                <CircleMarker
-                  key={pt.accident_id}
-                  center={[pt.latitude, pt.longitude]}
-                  radius={radius}
-                  pathOptions={{
-                    fillColor: color,
-                    fillOpacity: 0.85,
-                    color: '#FFFFFF',
-                    weight: 1.5,
-                  }}
-                  eventHandlers={{
-                    click: () => setSelectedIncident(pt),
-                  }}
-                >
-                  <Tooltip direction="top" offset={[0, -5]} opacity={0.95}>
-                    <div className="text-xs font-sans p-1">
-                      <div className="font-bold text-slate-900">{pt.city} ({pt.accident_severity})</div>
-                      <div className="text-[11px] text-slate-600 mt-0.5">
-                        {pt.road_type} • {pt.hour}:00 hrs • Weather: {pt.weather}
-                      </div>
-                    </div>
-                  </Tooltip>
-                </CircleMarker>
-              );
-            })}
-          </MapContainer>
+          <GoogleAccidentMap
+            points={pointsList}
+            city={selectedCity || 'Mumbai'}
+            severityFilter={severityFilter}
+            selectedIncident={selectedIncident}
+            onSelectIncident={setSelectedIncident}
+            isLoading={isLoading}
+          />
         </div>
 
         {/* Right Floating Incident Detail Drawer */}

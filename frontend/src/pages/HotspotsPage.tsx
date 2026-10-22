@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { MapContainer, TileLayer, Circle, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import {
   Flame,
   AlertTriangle,
@@ -16,29 +15,7 @@ import {
 import { getHotspots } from '../services/api';
 import { useCityFilter } from '../context/CityContext';
 import { HotspotItem } from '../types/api';
-import { LoadingSpinner } from '../components/common/LoadingSpinner';
-
-const CITY_COORDINATES: Record<string, [number, number]> = {
-  'Bangalore': [12.9716, 77.5946],
-  'Bengaluru': [12.9716, 77.5946],
-  'Mumbai': [19.0760, 72.8777],
-  'Delhi': [28.7041, 77.1025],
-  'Kolkata': [22.5726, 88.3639],
-  'Chennai': [13.0827, 80.2707],
-  'Hyderabad': [17.3850, 78.4867],
-  'Pune': [18.5204, 73.8567],
-  'Ahmedabad': [23.0225, 72.5714],
-};
-
-const MapFlyTo: React.FC<{ center: [number, number] | null; zoom?: number }> = ({ center, zoom = 13 }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (center && typeof center[0] === 'number' && typeof center[1] === 'number' && !isNaN(center[0]) && !isNaN(center[1])) {
-      map.flyTo(center, zoom, { duration: 1.2 });
-    }
-  }, [center, zoom, map]);
-  return null;
-};
+import { GoogleHotspotsMap } from '../components/map/GoogleHotspotsMap';
 
 export const HotspotsPage: React.FC = () => {
   const { selectedCity } = useCityFilter();
@@ -55,7 +32,7 @@ export const HotspotsPage: React.FC = () => {
   const rawHotspots: HotspotItem[] = data?.hotspots || [];
 
   // Robustly normalize and filter valid hotspots with fallback for any schema
-  const hotspots = rawHotspots
+  const hotspots: HotspotItem[] = rawHotspots
     .map((h: any) => {
       const lat = typeof h.centroid_lat === 'number' ? h.centroid_lat : typeof h.center_latitude === 'number' ? h.center_latitude : null;
       const lon = typeof h.centroid_lon === 'number' ? h.centroid_lon : typeof h.center_longitude === 'number' ? h.center_longitude : null;
@@ -88,17 +65,6 @@ export const HotspotsPage: React.FC = () => {
     })
     .filter((h) => h.centroid_lat !== null && h.centroid_lon !== null && !isNaN(h.centroid_lat) && !isNaN(h.centroid_lon));
 
-  // Determine initial center
-  const defaultCityCenter: [number, number] = (selectedCity && CITY_COORDINATES[selectedCity])
-    ? CITY_COORDINATES[selectedCity]
-    : [20.5937, 78.9629];
-
-  const mapCenter: [number, number] = hotspots.length > 0
-    ? [hotspots[0].centroid_lat, hotspots[0].centroid_lon]
-    : defaultCityCenter;
-
-  const mapZoom = hotspots.length > 0 ? (selectedCity ? 12 : 6) : (selectedCity ? 11 : 5);
-
   const handleFocusHotspot = (h: HotspotItem) => {
     setSelectedHotspot(h);
     if (h.centroid_lat && h.centroid_lon) {
@@ -119,7 +85,7 @@ export const HotspotsPage: React.FC = () => {
             Accident Hotspot Identification
           </h1>
           <p className="text-slate-600 text-sm mt-1 max-w-2xl leading-relaxed">
-            DBSCAN density clustering with geodesic haversine distance metric, identifying high-frequency collision corridors across India's metropolitan road networks.
+            DBSCAN density clustering with geodesic haversine distance metric on Google Maps, identifying high-frequency collision corridors across India's metropolitan road networks.
           </p>
         </div>
 
@@ -217,14 +183,14 @@ export const HotspotsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Split View: Map + Hotspots Table */}
+      {/* Split View: Google Map + Hotspots Table */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Interactive Cluster Map (7 cols) */}
         <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-sm h-[580px] relative flex flex-col">
           <div className="p-3.5 bg-slate-50/90 border-b border-slate-200 flex items-center justify-between z-10">
             <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
               <Navigation className="w-3.5 h-3.5 text-blue-600" />
-              Hotspot Spatial Map (Real OpenStreetMap Telemetry)
+              Hotspot Spatial Map (Google Maps Engine)
             </span>
             <span className="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
               {hotspots.length} Clusters Plotted
@@ -232,80 +198,15 @@ export const HotspotsPage: React.FC = () => {
           </div>
 
           <div className="flex-1 w-full h-full relative">
-            {isLoading && (
-              <div className="absolute inset-0 z-[500] bg-white/80 backdrop-blur-sm flex items-center justify-center">
-                <LoadingSpinner message="Calculating DBSCAN haversine clusters..." />
-              </div>
-            )}
-
-            <MapContainer
-              key={`${selectedCity || 'all'}-${epsKm}-${minPoints}`}
-              center={mapCenter}
-              zoom={mapZoom}
-              className="h-full w-full"
-            >
-              <MapFlyTo center={flyToCenter} />
-              
-              {/* Clean, Official OpenStreetMap Tiles (100% Free, Zero Watermark) */}
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                maxZoom={19}
-              />
-
-              {hotspots.map((h) => {
-                const isSelected = selectedHotspot?.cluster_id === h.cluster_id;
-                const hasHighFatal = (h.fatal_count || 0) > 0;
-
-                return (
-                  <React.Fragment key={h.cluster_id}>
-                    {/* Outer Cluster Buffer Circle */}
-                    <Circle
-                      center={[h.centroid_lat, h.centroid_lon]}
-                      radius={h.radius_m || epsKm * 1000}
-                      pathOptions={{
-                        color: isSelected ? '#2563EB' : hasHighFatal ? '#EF4444' : '#D97706',
-                        fillColor: hasHighFatal ? '#F87171' : '#F59E0B',
-                        fillOpacity: isSelected ? 0.35 : 0.18,
-                        weight: isSelected ? 2.5 : 1.5,
-                      }}
-                    />
-
-                    {/* Centroid Marker */}
-                    <CircleMarker
-                      center={[h.centroid_lat, h.centroid_lon]}
-                      radius={Math.min(20, Math.max(8, Math.sqrt(h.size) * 2.4))}
-                      pathOptions={{
-                        color: '#FFFFFF',
-                        fillColor: hasHighFatal ? '#DC2626' : '#D97706',
-                        fillOpacity: 0.95,
-                        weight: 2,
-                      }}
-                      eventHandlers={{
-                        click: () => handleFocusHotspot(h),
-                      }}
-                    >
-                      <Tooltip direction="top" offset={[0, -6]}>
-                        <div className="text-xs font-sans p-1.5 min-w-[180px]">
-                          <div className="font-black text-slate-900 border-b border-slate-100 pb-1 mb-1 flex items-center justify-between">
-                            <span>Cluster #{h.cluster_id}</span>
-                            <span className="text-blue-600 font-bold">{h.city}</span>
-                          </div>
-                          <div className="text-slate-600 font-medium">Total Collisions: <span className="font-bold text-slate-900">{h.size}</span></div>
-                          <div className="text-red-600 font-bold mt-0.5">
-                            Fatal Crashes: {h.fatal_count} ({(h.fatal_ratio * 100).toFixed(1)}%)
-                          </div>
-                          <div className="text-slate-500 text-[11px] mt-1 pt-1 border-t border-slate-100 flex items-center justify-between">
-                            <span>{h.dominant_road}</span>
-                            <span className="font-mono">{h.density_per_sqkm} /km²</span>
-                          </div>
-                        </div>
-                      </Tooltip>
-                    </CircleMarker>
-                  </React.Fragment>
-                );
-              })}
-            </MapContainer>
+            <GoogleHotspotsMap
+              hotspots={hotspots}
+              selectedHotspot={selectedHotspot}
+              onSelectHotspot={handleFocusHotspot}
+              flyToCenter={flyToCenter}
+              selectedCity={selectedCity}
+              epsKm={epsKm}
+              isLoading={isLoading}
+            />
           </div>
         </div>
 
@@ -316,7 +217,7 @@ export const HotspotsPage: React.FC = () => {
               <Flame className="w-3.5 h-3.5 text-red-600" />
               Ranked Hazard Corridors
             </span>
-            <span className="text-xs text-slate-500 font-medium">Click to Zoom</span>
+            <span className="text-xs text-slate-500 font-medium">Click to Zoom on Map</span>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1">
