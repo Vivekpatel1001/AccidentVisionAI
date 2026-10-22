@@ -12,6 +12,8 @@ import type {
   DataQualityResponse,
   AccidentListResponse,
   MetadataResponse,
+  RouteAnalysisRequest,
+  RouteAnalysisResponse,
 } from '../types/api';
 
 const api = axios.create({
@@ -99,6 +101,11 @@ export const getAccidents = async (params: {
   search?: string;
 }): Promise<AccidentListResponse> => {
   const { data } = await api.get('/accidents', { params });
+  return data;
+};
+
+export const analyzeRouteSafety = async (input: RouteAnalysisRequest): Promise<RouteAnalysisResponse> => {
+  const { data } = await api.post('/route/analyze', input);
   return data;
 };
 

@@ -1,0 +1,20 @@
+{
+  "model_name": "Route Risk and Segment Hazard Aggregation Engine",
+  "version": "route_risk_v1",
+  "spatial_training_records": 12205,
+  "search_radius_km": 2.0,
+  "aggregation_formula": "R_route = 0.65 * sum(L_i * h_i)/sum(L) + 0.35 * max(h_i)",
+  "hazard_weights": {
+    "spatial_density": 0.4,
+    "infrastructure_vulnerability": 0.25,
+    "temporal_peak": 0.2,
+    "weather_multiplier": 0.15
+  },
+  "category_thresholds": {
+    "Low": "< 28",
+    "Moderate": "28 - 51.9",
+    "High": "52 - 73.9",
+    "Very High": ">= 74"
+  },
+  "created_utc": "2026-10-22T17:19:27.914225+00:00"
+}

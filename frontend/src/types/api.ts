@@ -298,3 +298,76 @@ export interface MetadataResponse {
   traffic_densities: string[];
   osm_highway_types: string[];
 }
+
+export interface RouteAnalysisRequest {
+  source: string;
+  destination: string;
+  departure_date?: string;
+  departure_time?: string;
+  roadway_preference?: string;
+  vehicle_type?: string;
+}
+
+export interface RouteSegmentHazard {
+  segment_id: number;
+  segment_name: string;
+  latitude: number;
+  longitude: number;
+  hazard_score: number;
+  category: 'Low' | 'Moderate' | 'High' | 'Very High';
+  historical_crashes_2km: number;
+  density_per_sqkm: number;
+  length_km: number;
+  traversal_hour: number;
+  contributing_factors: {
+    spatial_density_score: number;
+    infrastructure_vulnerability: number;
+    temporal_risk_factor: number;
+    weather_risk_factor: number;
+  };
+}
+
+export interface RouteAnalysisResponse {
+  journey_summary: {
+    source: string;
+    destination: string;
+    departure_date: string;
+    departure_time: string;
+    total_distance_km: number;
+    estimated_duration_hours: number;
+    vehicle_category: string;
+  };
+  risk_evaluation: {
+    overall_relative_risk: number;
+    risk_category: 'Low' | 'Moderate' | 'High' | 'Very High';
+    metric_type: string;
+    highest_risk_segments: RouteSegmentHazard[];
+  };
+  severity_prediction: {
+    conditional_target: string;
+    predicted_severity: string;
+    probabilities: {
+      Minor: number;
+      Severe: number;
+      Fatal: number;
+    };
+    model_version: string;
+    model_architecture: string;
+  };
+  weather_intelligence: {
+    route_weather_summary: {
+      segment: string;
+      expected_hour: string;
+      weather: string;
+      temperature_c: number;
+      precipitation_mm: number;
+      source: string;
+    }[];
+    coverage_verified: boolean;
+  };
+  safety_recommendations: string[];
+  data_transparency_and_limitations: {
+    coverage_warning: string;
+    disclaimer: string;
+  };
+}
