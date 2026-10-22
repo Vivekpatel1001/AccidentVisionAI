@@ -108,7 +108,7 @@ export const Navbar: React.FC = () => {
           </Link>
 
           {/* Desktop Navigation Tabs */}
-          <nav className="hidden lg:flex items-center space-x-1">
+          <nav className="hidden xl:flex items-center space-x-1">
             {customerNavItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -117,33 +117,57 @@ export const Navbar: React.FC = () => {
                   to={item.href}
                   end={item.href === '/'}
                   className={({ isActive }) =>
-                    `flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                    `flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${
                       isActive
                         ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200 shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                     }`
                   }
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.name}</span>
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="whitespace-nowrap">{item.name}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+
+          {/* Medium Screen Compact Navigation (768px - 1280px) */}
+          <nav className="hidden md:flex xl:hidden items-center space-x-1">
+            {customerNavItems.slice(0, 3).map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.href}
+                  to={item.href}
+                  end={item.href === '/'}
+                  className={({ isActive }) =>
+                    `flex items-center space-x-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                    }`
+                  }
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="whitespace-nowrap">{item.name}</span>
                 </NavLink>
               );
             })}
           </nav>
 
           {/* Right Action Controls */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 shrink-0">
             {/* City Selector */}
-            <div className="flex items-center bg-white border border-slate-200 hover:border-blue-400 rounded-lg px-2.5 py-1.5 text-xs transition-colors shadow-sm">
-              <MapPin className="w-3.5 h-3.5 text-blue-600 mr-1.5 shrink-0" />
+            <div className="flex items-center bg-white border border-slate-200 hover:border-blue-400 rounded-lg px-2 py-1 text-xs transition-colors shadow-sm">
+              <MapPin className="w-3.5 h-3.5 text-blue-600 mr-1 shrink-0" />
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="bg-transparent text-slate-800 text-xs focus:outline-none cursor-pointer pr-1 font-semibold"
+                className="bg-transparent text-slate-800 text-xs focus:outline-none cursor-pointer pr-1 font-semibold max-w-[110px] truncate"
                 aria-label="Select City"
               >
                 <option value="" className="bg-white text-slate-900">
-                  All 8 Metros
+                  All Metros
                 </option>
                 {cityList.map((city) => (
                   <option key={city} value={city} className="bg-white text-slate-900">
@@ -157,24 +181,24 @@ export const Navbar: React.FC = () => {
                   className="ml-1 text-[10px] text-slate-400 hover:text-red-600 underline font-mono"
                   title="Clear City Filter"
                 >
-                  Clear
+                  ✕
                 </button>
               )}
             </div>
 
             {/* Live Telemetry Pill */}
-            <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-semibold text-emerald-700 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <span>Verified 20K Crashes</span>
+            <div className="hidden 2xl:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-semibold text-emerald-700 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span>20K Crashes</span>
             </div>
 
-            {/* Mobile Hamburger Button */}
+            {/* Mobile / Compact Hamburger Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm"
+              className="xl:hidden p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm"
               aria-label="Toggle Navigation Menu"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
           </div>
         </div>
