@@ -5,7 +5,7 @@ import { ShieldAlert, PhoneCall, AlertTriangle, ExternalLink, CheckCircle2 } fro
 export const Footer: React.FC = () => {
   return (
     <footer className="w-full border-t border-slate-200 bg-white mt-16 text-xs text-slate-600">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-5 lg:px-8 py-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Brand & Purpose */}
           <div className="md:col-span-2 space-y-3">

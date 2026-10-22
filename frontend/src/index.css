@@ -1,5 +1,3 @@
-@import "leaflet/dist/leaflet.css";
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,14 +6,38 @@
   :root {
     color-scheme: light;
   }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
   
-  html, body, #root {
+  html {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
     background-color: #F8FAFC !important;
     color: #0F172A !important;
     margin: 0;
     padding: 0;
+    width: 100%;
     min-height: 100vh;
-    overflow-x: hidden;
+    overflow-x: clip;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  #root {
+    background-color: #F8FAFC !important;
+    color: #0F172A !important;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Custom subtle light scrollbar */

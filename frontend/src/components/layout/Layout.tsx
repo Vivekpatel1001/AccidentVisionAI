@@ -5,12 +5,12 @@ import { Footer } from './Footer';
 
 export const Layout: React.FC = () => {
   return (
-    <div className="min-h-screen w-full bg-[#F8FAFC] text-slate-900 font-sans flex flex-col selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen w-full bg-[#F8FAFC] text-slate-900 font-sans flex flex-col selection:bg-blue-100 selection:text-blue-900 antialiased overflow-x-clip">
       {/* Top Classic Navigation Header */}
       <Navbar />
 
-      {/* Main Viewport Container */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 py-4 min-w-0">
+      {/* Main Viewport Container - Perfectly Centered and Responsive */}
+      <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-5 lg:px-8 py-5 min-w-0">
         <Outlet />
       </main>
 

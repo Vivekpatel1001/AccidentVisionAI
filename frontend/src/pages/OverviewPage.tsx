@@ -334,62 +334,62 @@ export const OverviewPage: React.FC = () => {
   });
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 px-2 sm:px-4">
+    <div className="w-full max-w-5xl mx-auto space-y-6 sm:space-y-8 min-w-0">
       {/* Centered Hero Welcome Header */}
-      <div className="text-center space-y-3 pt-2">
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold tracking-wide shadow-sm">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>AccidentVision AI • Intelligent Road Safety Intelligence</span>
+      <div className="text-center space-y-3 pt-1 sm:pt-2">
+        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] sm:text-xs font-bold tracking-wide shadow-sm max-w-full">
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">AccidentVision AI • Intelligent Road Safety Intelligence</span>
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">
           Check Your Trip Accident Risk
         </h1>
 
-        <p className="text-slate-600 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
+        <p className="text-slate-600 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed px-1">
           Estimate real-time corridor collision hazard and potential severity before driving. Backed by verified UN WorldPop 1-km demographic density and 20,000 police collision records.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-          <div className="flex items-center gap-1.5 text-blue-700 bg-white px-3 py-1 rounded-lg border border-blue-200 shadow-sm text-xs font-bold">
-            <Shield className="w-3.5 h-3.5 text-blue-600" />
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 pt-1">
+          <div className="flex items-center gap-1.5 text-blue-700 bg-white px-2.5 sm:px-3 py-1 rounded-lg border border-blue-200 shadow-sm text-[11px] sm:text-xs font-bold">
+            <Shield className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             <span>88.64% Hazard Accuracy (ROC-AUC: 0.9609)</span>
           </div>
-          <div className="flex items-center gap-1.5 text-emerald-700 bg-white px-3 py-1 rounded-lg border border-emerald-200 shadow-sm text-xs font-bold">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          <div className="flex items-center gap-1.5 text-emerald-700 bg-white px-2.5 sm:px-3 py-1 rounded-lg border border-emerald-200 shadow-sm text-[11px] sm:text-xs font-bold">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span>WorldPop 1-km Demographic Raster</span>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-700 bg-white px-3 py-1 rounded-lg border border-slate-200 shadow-sm text-xs font-bold">
-            <Navigation className="w-3.5 h-3.5 text-indigo-600" />
+          <div className="flex items-center gap-1.5 text-slate-700 bg-white px-2.5 sm:px-3 py-1 rounded-lg border border-slate-200 shadow-sm text-[11px] sm:text-xs font-bold">
+            <Navigation className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
             <span>IRC Roadway Safety Standards</span>
           </div>
         </div>
       </div>
 
       {/* Centered Trip Planning Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-7 shadow-sm space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 md:p-7 shadow-sm space-y-5 sm:space-y-6 w-full min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div>
             <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-              <Navigation className="w-4 h-4 text-blue-600" />
+              <Navigation className="w-4 h-4 text-blue-600 shrink-0" />
               Configure Planned Journey
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Enter origin, destination, vehicle category, and departure conditions</p>
           </div>
-          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+          <span className="self-start sm:self-auto text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono">
             Step-by-Step Evaluator
           </span>
         </div>
 
         <form onSubmit={handleCalculate} className="space-y-5 text-xs">
           {/* Section 1: Route Setup */}
-          <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
+          <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600" />
+                <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                 <span>1. Travel Route (Origin & Destination)</span>
               </label>
-              <span className="text-blue-700 font-mono text-xs font-extrabold bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-sm">
+              <span className="self-start sm:self-auto text-blue-700 font-mono text-xs font-extrabold bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-sm">
                 {form.source} ➔ {form.destination}
               </span>
             </div>
@@ -397,7 +397,7 @@ export const OverviewPage: React.FC = () => {
             {/* Quick Corridor Shortcut Buttons */}
             <div className="space-y-1.5">
               <span className="text-[11px] text-slate-500 font-semibold">Popular Route Shortcuts:</span>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {POPULAR_CORRIDORS.map((c) => {
                   const isSelected = form.source === c.source && form.destination === c.destination;
                   return (
@@ -405,7 +405,7 @@ export const OverviewPage: React.FC = () => {
                       key={c.label}
                       type="button"
                       onClick={() => handleCorridorPreset(c)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                      className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                         isSelected
                           ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                           : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-slate-100'
@@ -419,8 +419,8 @@ export const OverviewPage: React.FC = () => {
             </div>
 
             {/* Origin & Destination Dropdowns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 min-w-0">
+              <div className="min-w-0">
                 <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
                   Origin (Source City)
                 </label>
@@ -435,7 +435,7 @@ export const OverviewPage: React.FC = () => {
                 </select>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
                   Destination Area / Hub
                 </label>
@@ -639,26 +639,26 @@ export const OverviewPage: React.FC = () => {
       </div>
 
       {/* Centered Safety Results Workbench */}
-      <div ref={resultsRef} className="space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+      <div ref={resultsRef} className="space-y-6 w-full min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
           <div>
             <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-              <Activity className="w-5 h-5 text-blue-600" />
-              AI Trip Safety Evaluation Report
+              <Activity className="w-5 h-5 text-blue-600 shrink-0" />
+              <span>AI Trip Safety Evaluation Report</span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               Verified intelligence along <strong>{form.source} ➔ {form.destination}</strong> ({form.road_type})
             </p>
           </div>
-          <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+          <span className="self-start sm:self-auto text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
             88.64% Verified Accuracy
           </span>
         </div>
 
         {/* 2-Card Balanced Grid for Results */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch w-full min-w-0">
           {/* Card 1: Trip Safety Score Gauge */}
-          <div className={`bg-white border-2 ${riskInfo.border} rounded-2xl p-6 shadow-sm flex flex-col justify-between`}>
+          <div className={`bg-white border-2 ${riskInfo.border} rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between w-full min-w-0`}>
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -693,7 +693,7 @@ export const OverviewPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-3 space-y-1">
+                <div className="mt-3 space-y-1 px-2">
                   <div className={`text-base font-extrabold tracking-tight ${riskInfo.color}`}>
                     {riskInfo.label}
                   </div>
@@ -713,8 +713,8 @@ export const OverviewPage: React.FC = () => {
                 <div>
                   <div className="flex justify-between text-[11px] mb-0.5 font-semibold">
                     <span className="text-slate-600 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-red-500" />
-                      Fatal Collision Risk
+                      <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                      <span>Fatal Collision Risk</span>
                     </span>
                     <span className="font-mono font-bold text-red-600">
                       {Math.round((predictionResult?.probabilities['Fatal'] || 0.15) * 100)}%
@@ -731,8 +731,8 @@ export const OverviewPage: React.FC = () => {
                 <div>
                   <div className="flex justify-between text-[11px] mb-0.5 font-semibold">
                     <span className="text-slate-600 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" />
-                      Major Injury Collision
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                      <span>Major Injury Collision</span>
                     </span>
                     <span className="font-mono font-bold text-amber-600">
                       {Math.round((predictionResult?.probabilities['Severe'] || 0.32) * 100)}%
@@ -749,8 +749,8 @@ export const OverviewPage: React.FC = () => {
                 <div>
                   <div className="flex justify-between text-[11px] mb-0.5 font-semibold">
                     <span className="text-slate-600 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      Minor Damage Only
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span>Minor Damage Only</span>
                     </span>
                     <span className="font-mono font-bold text-emerald-600">
                       {Math.round((predictionResult?.probabilities['Minor'] || 0.53) * 100)}%
@@ -768,11 +768,11 @@ export const OverviewPage: React.FC = () => {
           </div>
 
           {/* Card 2: Corridor Collision Hazard Telemetry */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-sm border border-slate-700 flex flex-col justify-between">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-700 flex flex-col justify-between w-full min-w-0">
             <div>
               <div className="flex items-center justify-between border-b border-slate-700 pb-3">
                 <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-400" />
+                  <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
                     Corridor Collision Hazard
                   </span>
@@ -820,10 +820,10 @@ export const OverviewPage: React.FC = () => {
               </div>
 
               {/* WorldPop & OSM Metrics Grid */}
-              <div className="grid grid-cols-2 gap-2.5 pt-2 text-xs">
-                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-xs">
+                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 min-w-0">
                   <span className="text-[10px] text-slate-400 block font-mono">WorldPop Density</span>
-                  <span className="font-extrabold text-sm text-slate-100 font-mono">
+                  <span className="font-extrabold text-sm text-slate-100 font-mono truncate block">
                     {predictionResult?.corridor_hazard?.population_density_per_sqkm
                       ? `${predictionResult.corridor_hazard.population_density_per_sqkm.toLocaleString()} / km²`
                       : '10,697 / km²'}
@@ -831,9 +831,9 @@ export const OverviewPage: React.FC = () => {
                   <span className="text-[10px] text-slate-400 block mt-0.5">Demographic Exposure</span>
                 </div>
 
-                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3">
+                <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 min-w-0">
                   <span className="text-[10px] text-slate-400 block font-mono">IRC Design Speed</span>
-                  <span className="font-extrabold text-sm text-slate-100 font-mono">
+                  <span className="font-extrabold text-sm text-slate-100 font-mono truncate block">
                     {predictionResult?.corridor_hazard?.design_speed_kmh ?? 80} km/h
                   </span>
                   <span className="text-[10px] text-slate-400 block mt-0.5">
@@ -850,14 +850,14 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         {/* Dynamic Context Factors (Full Width) */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 w-full min-w-0">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-            <Info className="w-4 h-4 text-blue-600" />
+            <Info className="w-4 h-4 text-blue-600 shrink-0" />
             <span>Route Hazard Factors Explained</span>
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 min-w-0">
             {getRiskFactors().map((factor, idx) => (
-              <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-1">
+              <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-1 min-w-0">
                 <div className="font-bold text-slate-900 flex items-center gap-2 text-xs">
                   <span className={`w-2 h-2 rounded-full shrink-0 ${factor.type === 'critical' ? 'bg-red-500' : factor.type === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                   <span>{factor.title}</span>
@@ -872,14 +872,14 @@ export const OverviewPage: React.FC = () => {
       </div>
 
       {/* Centered Embedded Interactive Geospatial Map */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 w-full min-w-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold mb-1">
-              <MapPin className="w-3.5 h-3.5" />
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
               <span>Verified Crash Telemetry</span>
             </div>
-            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
               Live Collision Blackspots: {form.source} ➔ {form.destination} ({form.road_type})
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
@@ -887,19 +887,19 @@ export const OverviewPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
               <span>Fatal</span>
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ml-1" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 ml-1" />
               <span>Severe</span>
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ml-1" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 ml-1" />
               <span>Minor</span>
             </div>
 
             <Link
               to="/map"
-              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1"
+              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1 shrink-0"
             >
               <span>Full Screen</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -908,7 +908,7 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         {/* Google Map Container */}
-        <div className="relative h-[440px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
+        <div className="relative h-[340px] sm:h-[420px] md:h-[460px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
           <GoogleOverviewMap
             points={rawPoints}
             city={form.city}
@@ -918,14 +918,14 @@ export const OverviewPage: React.FC = () => {
           />
 
           {/* Floating Points Count Pill */}
-          <div className="absolute top-3 left-3 z-[10] bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-200 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2 pointer-events-none">
-            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-            <span>{mapPoints.length} Spots Plotted in {form.city} ({form.road_type})</span>
+          <div className="absolute top-3 left-3 z-[10] bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-200 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2 pointer-events-none max-w-[calc(100%-24px)] truncate">
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
+            <span className="truncate">{mapPoints.length} Spots Plotted in {form.city} ({form.road_type})</span>
           </div>
 
           {/* Floating Selected Point Details */}
           {selectedMapPoint && (
-            <div className="absolute bottom-3 right-3 z-[10] w-72 bg-white rounded-xl border border-slate-200 shadow-xl p-4 space-y-2 animate-in fade-in duration-150">
+            <div className="absolute bottom-3 right-3 z-[10] w-72 max-w-[calc(100%-24px)] bg-white rounded-xl border border-slate-200 shadow-xl p-4 space-y-2 animate-in fade-in duration-150">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <span className="font-extrabold text-xs text-slate-900">
                   Crash Point #{selectedMapPoint.accident_id}
@@ -949,8 +949,8 @@ export const OverviewPage: React.FC = () => {
       </div>
 
       {/* Centered City Road Safety Statistics */}
-      <div className="space-y-4 pb-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 pb-6 w-full min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
               {form.city} Road Safety Statistics
@@ -961,44 +961,44 @@ export const OverviewPage: React.FC = () => {
           </div>
           <Link
             to="/temporal"
-            className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            className="self-start sm:self-auto text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
           >
             <span>Commute Timing Guide</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
-            <div className="text-xs font-bold text-slate-500 uppercase">Verified Crashes</div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 w-full min-w-0">
+          <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-1 min-w-0">
+            <div className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase truncate">Verified Crashes</div>
+            <div className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 font-mono truncate">
               {overviewData?.total_records.toLocaleString() || '2,490'}
             </div>
-            <div className="text-[11px] text-slate-500">2022 – 2025 records</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">2022 – 2025 records</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
-            <div className="text-xs font-bold text-slate-500 uppercase">Fatal Incident Share</div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-red-600 font-mono">
+          <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-1 min-w-0">
+            <div className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase truncate">Fatal Share</div>
+            <div className="text-xl sm:text-2xl md:text-3xl font-extrabold text-red-600 font-mono truncate">
               {overviewData?.fatal_pct || '15.8'}%
             </div>
-            <div className="text-[11px] text-slate-500">High severity collisions</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">High severity crashes</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
-            <div className="text-xs font-bold text-slate-500 uppercase">Safest Window</div>
-            <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 font-mono">
+          <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-1 min-w-0">
+            <div className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase truncate">Safest Window</div>
+            <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-emerald-600 font-mono truncate">
               {overviewData?.safest_window || '10:00 – 14:00'}
             </div>
-            <div className="text-[11px] text-slate-500">Lowest incident rate</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">Lowest incident rate</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
-            <div className="text-xs font-bold text-slate-500 uppercase">Peak Crash Window</div>
-            <div className="text-xl sm:text-2xl font-extrabold text-amber-600 font-mono">
+          <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-1 min-w-0">
+            <div className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase truncate">Peak Window</div>
+            <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-amber-600 font-mono truncate">
               {overviewData?.peak_window || '18:00 – 21:00'}
             </div>
-            <div className="text-[11px] text-slate-500">Highest crash density</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">Highest collision rate</div>
           </div>
         </div>
       </div>
