@@ -14,6 +14,10 @@ import type {
   MetadataResponse,
   RouteAnalysisRequest,
   RouteAnalysisResponse,
+  MorthCityItem,
+  MorthStateItem,
+  MorthCollisionItem,
+  MorthNationalSummary,
 } from '../types/api';
 
 const api = axios.create({
@@ -42,10 +46,12 @@ export const getOverview = async (city?: string): Promise<OverviewStats> => {
 export const getGeoAccidents = async (
   city?: string,
   severity?: string,
-  limit: number = 3000
+  limit: number = 3000,
+  source?: string,
+  destination?: string
 ): Promise<AccidentGeoPoint[]> => {
   const { data } = await api.get('/geo/accidents', {
-    params: { city, severity, limit },
+    params: { city, severity, limit, source, destination },
   });
   return Array.isArray(data) ? data : (data?.points || []);
 };
@@ -106,6 +112,26 @@ export const getAccidents = async (params: {
 
 export const analyzeRouteSafety = async (input: RouteAnalysisRequest): Promise<RouteAnalysisResponse> => {
   const { data } = await api.post('/route/analyze', input);
+  return data;
+};
+
+export const getMorthCities = async (): Promise<{ count: number; source: string; report_year: number; cities: MorthCityItem[] }> => {
+  const { data } = await api.get('/morth/cities');
+  return data;
+};
+
+export const getMorthStates = async (): Promise<{ count: number; source: string; report_year: number; states: MorthStateItem[] }> => {
+  const { data } = await api.get('/morth/states');
+  return data;
+};
+
+export const getMorthCollisionTypes = async (): Promise<{ source: string; report_year: number; national_total_accidents: number; national_total_fatalities: number; collision_types: MorthCollisionItem[] }> => {
+  const { data } = await api.get('/morth/collision-types');
+  return data;
+};
+
+export const getMorthSummary = async (): Promise<MorthNationalSummary> => {
+  const { data } = await api.get('/morth/summary');
   return data;
 };
 

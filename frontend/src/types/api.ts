@@ -1,3 +1,75 @@
+export interface MorthCityStats {
+  city: string;
+  accidents_2024: number;
+  killed_2024: number;
+  injured_2024: number;
+  fatal_pct: number;
+  top_fatal_mode: string;
+  top_violation: string;
+  ranking_accidents?: number | null;
+  ranking_killed?: number | null;
+  mode_breakdown?: Record<string, number>;
+  violation_breakdown?: Record<string, number>;
+  source?: string;
+}
+
+export interface MorthCityItem {
+  city: string;
+  accidents_2024: number;
+  killed_2024: number;
+  injured_2024: number;
+  fatal_pct: number;
+  ranking_accidents?: number | null;
+  ranking_killed?: number | null;
+  top_fatal_mode?: string;
+  top_violation?: string;
+}
+
+export interface MorthStateItem {
+  'Sl No'?: string;
+  State: string;
+  '2020 Accidents'?: string | number;
+  '2021 Accidents'?: string | number;
+  '2022 Accidents'?: string | number;
+  '2023 Accidents'?: string | number;
+  '2024 Accidents'?: string | number;
+  'Change from 2023 to 2024'?: string | number;
+  '% change from 2023 to 2024'?: number | null;
+  '2024 Ranking'?: number | null;
+  '2020 Killed'?: string | number;
+  '2021 Killed'?: string | number;
+  '2022 Killed'?: string | number;
+  '2023 Killed'?: string | number;
+  '2024 Killed'?: string | number;
+  '2024 Ranking_fatal'?: number | null;
+}
+
+export interface MorthCollisionItem {
+  collision_type: string;
+  accidents_2024: number;
+  killed_2024: number;
+  injured_2024: number;
+  fatal_pct: number;
+  change_accidents_pct?: number | null;
+  change_killed_pct?: number | null;
+}
+
+export interface MorthNationalSummary {
+  source: string;
+  report_year: number;
+  national_accidents: number;
+  national_fatalities: number;
+  national_injured: number;
+  fatal_severity_rate: number;
+  million_plus_cities_total_accidents: number;
+  million_plus_cities_total_fatalities: number;
+  primary_violation_national: string;
+  highest_risk_vehicle: string;
+  pedestrian_share_fatalities: number;
+  highest_accident_state: string;
+  highest_fatality_state: string;
+}
+
 export interface OverviewStats {
   total_records: number;
   fatal_count: number;
@@ -22,21 +94,33 @@ export interface OverviewStats {
     description: string;
     type: 'warning' | 'info' | 'critical' | 'success';
   }[];
+  morth_official?: MorthCityStats | null;
+  kpis?: Record<string, any>;
 }
 
 export interface AccidentGeoPoint {
-  accident_id: string;
+  accident_id: string | number;
   city: string;
+  state?: string;
   latitude: number;
   longitude: number;
-  accident_severity: 'Fatal' | 'Severe' | 'Minor';
+  accident_severity: 'Fatal' | 'Severe' | 'Minor' | string;
   road_type: string;
   weather: string;
   traffic_density: string;
   hour: number;
   date: string;
-  osm_highway?: string;
+  time?: string;
+  day_of_week?: string;
+  lanes?: number;
+  traffic_signal?: number | boolean;
+  visibility?: string | number;
+  temperature?: number;
+  cause?: string;
+  vehicles_involved?: number;
   casualties?: number;
+  osm_highway?: string;
+  risk_score?: number;
 }
 
 export interface HotspotItem {

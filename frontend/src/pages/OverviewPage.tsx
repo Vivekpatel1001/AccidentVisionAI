@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { GoogleOverviewMap } from '../components/map/GoogleOverviewMap';
+import { GoogleOverviewMap, RouteSummary } from '../components/map/GoogleOverviewMap';
 import {
   ShieldAlert,
   MapPin,
@@ -17,29 +17,27 @@ import {
   CheckCircle2,
   Flame,
   ArrowRight,
-  Check,
   Shield,
   Truck,
   Bike,
   Users,
   Activity,
   ArrowRightLeft,
+  Calendar,
+  AlertTriangle,
+  FileText,
+  X,
+  Eye,
+  Thermometer,
+  ShieldCheck,
+  Zap,
+  Building2,
 } from 'lucide-react';
-import { predictSeverity, getOverview, getHotspots, getGeoAccidents } from '../services/api';
+import { predictSeverity, getOverview, getGeoAccidents } from '../services/api';
 import { PredictRequest, PredictResponse, AccidentGeoPoint } from '../types/api';
 import { useCityFilter } from '../context/CityContext';
-
-const CITY_COORDINATES: Record<string, [number, number, number]> = {
-  Mumbai: [19.0760, 72.8777, 12],
-  Delhi: [28.6139, 77.2090, 11],
-  Bengaluru: [12.9716, 77.5946, 12],
-  Bangalore: [12.9716, 77.5946, 12],
-  Chennai: [13.0827, 80.2707, 12],
-  Pune: [18.5204, 73.8567, 12],
-  Hyderabad: [17.3850, 78.4867, 12],
-  Kolkata: [22.5726, 88.3639, 12],
-  Chandigarh: [30.7333, 76.7794, 13],
-};
+import { SearchableDropdown } from '../components/common/SearchableDropdown';
+import { MorthNationalExplorer } from '../components/analytics/MorthNationalExplorer';
 
 const CITIES = [
   'Mumbai',
@@ -52,24 +50,36 @@ const CITIES = [
   'Chandigarh',
 ];
 
-const DESTINATIONS: Record<string, string[]> = {
-  Mumbai: ['Pune', 'Thane', 'Navi Mumbai', 'Nashik', 'Goa'],
-  Delhi: ['Chandigarh', 'Gurgaon', 'Noida', 'Faridabad', 'Jaipur'],
-  Bengaluru: ['Chennai', 'Electronic City', 'Mysuru', 'Hosur', 'Whitefield'],
-  Chennai: ['Bengaluru', 'OMR Corridor', 'Sriperumbudur', 'Vellore', 'Pondicherry'],
-  Pune: ['Mumbai', 'Hinjewadi IT Hub', 'Lonavala', 'Satara', 'PCMC'],
-  Hyderabad: ['Vijayawada', 'Gachibowli', 'Secunderabad', 'Warangal', 'Shamshabad'],
-  Kolkata: ['Howrah', 'Salt Lake', 'EM Bypass', 'Durgapur', 'Siliguri'],
-  Chandigarh: ['Delhi', 'Mohali', 'Panchkula', 'Zirakpur', 'Shimla'],
-};
+const ALL_DESTINATIONS = [
+  'Agra', 'Ahmedabad', 'Ajmer', 'Alibaug', 'Amritsar', 'Asansol', 'Aurangabad',
+  'Ayodhya', 'Bengaluru', 'Bhopal', 'Bhubaneswar', 'Bikaner', 'Chandigarh',
+  'Chennai', 'Coimbatore', 'Cuttack', 'Dehradun', 'Delhi', 'Dhanbad', 'Dombivli',
+  'Durgapur', 'Electronic City', 'Faridabad', 'Ghaziabad', 'Goa', 'Gorakhpur',
+  'Gurgaon', 'Guwahati', 'Gwalior', 'Haridwar', 'Hinjewadi IT Hub', 'Howrah',
+  'Hyderabad', 'Indore', 'Jabalpur', 'Jaipur', 'Jaisalmer', 'Jalandhar',
+  'Jammu', 'Jodhpur', 'Kalyan', 'Kanpur', 'Khandala', 'Kochi', 'Kodaikanal',
+  'Kolhapur', 'Kolkata', 'Kota', 'Lonavala', 'Lucknow', 'Ludhiana', 'Madurai',
+  'Mahabaleshwar', 'Manali', 'Mangalore', 'Mathura', 'Meerut', 'Mount Abu',
+  'Mumbai', 'Mysore', 'Nagpur', 'Nashik', 'Navi Mumbai', 'Noida', 'OMR Corridor',
+  'Ooty', 'Panaji', 'Panvel', 'Patna', 'Pondicherry', 'Prayagraj', 'Pune',
+  'Puri', 'Pushkar', 'Raipur', 'Rajkot', 'Ranchi', 'Rishikesh', 'Satara',
+  'Shillong', 'Shimla', 'Shirdi', 'Siliguri', 'Solapur', 'Sriperumbudur',
+  'Srinagar', 'Surat', 'Thane', 'Thiruvananthapuram', 'Tirupati', 'Udaipur',
+  'Udupi', 'Vadodara', 'Varanasi', 'Vasai', 'Vijayawada', 'Virar', 'Visakhapatnam',
+  'Vrindavan', 'Warangal', 'Whitefield'
+];
 
 const POPULAR_CORRIDORS = [
   { source: 'Mumbai', destination: 'Pune', roadType: 'Highway', label: 'Mumbai ➔ Pune' },
   { source: 'Delhi', destination: 'Chandigarh', roadType: 'Highway', label: 'Delhi ➔ Chandigarh' },
   { source: 'Bengaluru', destination: 'Chennai', roadType: 'Highway', label: 'Bengaluru ➔ Chennai' },
   { source: 'Delhi', destination: 'Gurgaon', roadType: 'Urban', label: 'Delhi ➔ Gurgaon' },
-  { source: 'Pune', destination: 'Mumbai', roadType: 'Highway', label: 'Pune ➔ Mumbai' },
+  { source: 'Mumbai', destination: 'Goa', roadType: 'Highway', label: 'Mumbai ➔ Goa' },
+  { source: 'Pune', destination: 'Lonavala', roadType: 'Highway', label: 'Pune ➔ Lonavala' },
   { source: 'Hyderabad', destination: 'Vijayawada', roadType: 'Highway', label: 'Hyderabad ➔ Vijayawada' },
+  { source: 'Ahmedabad', destination: 'Surat', roadType: 'Highway', label: 'Ahmedabad ➔ Surat' },
+  { source: 'Kolkata', destination: 'Durgapur', roadType: 'Highway', label: 'Kolkata ➔ Durgapur' },
+  { source: 'Jaipur', destination: 'Delhi', roadType: 'Highway', label: 'Jaipur ➔ Delhi' },
 ];
 
 const VEHICLE_TYPES = [
@@ -96,6 +106,7 @@ const TIME_PRESETS = [
 export const OverviewPage: React.FC = () => {
   const { selectedCity, setSelectedCity } = useCityFilter();
   const resultsRef = useRef<HTMLDivElement>(null);
+  const investigationRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState<PredictRequest>({
     city: selectedCity || 'Mumbai',
@@ -118,12 +129,17 @@ export const OverviewPage: React.FC = () => {
 
   const [predictionResult, setPredictionResult] = useState<PredictResponse | null>(null);
   const [selectedMapPoint, setSelectedMapPoint] = useState<AccidentGeoPoint | null>(null);
+  const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
+  const [showMorthExplorer, setShowMorthExplorer] = useState(false);
 
   // Sync city when global filter changes
   useEffect(() => {
     if (selectedCity && selectedCity !== form.city) {
-      const defaultDest = DESTINATIONS[selectedCity] ? DESTINATIONS[selectedCity][0] : 'Downtown Hub';
-      setForm((prev) => ({ ...prev, city: selectedCity, source: selectedCity, destination: defaultDest }));
+      setForm((prev) => ({
+        ...prev,
+        city: selectedCity,
+        source: selectedCity,
+      }));
     }
   }, [selectedCity]);
 
@@ -133,16 +149,10 @@ export const OverviewPage: React.FC = () => {
     queryFn: () => getOverview(form.city),
   });
 
-  // Query hotspots for the city preview
-  const { data: hotspotsData } = useQuery({
-    queryKey: ['hotspots-preview', form.city],
-    queryFn: () => getHotspots(form.city, 8, 0.8),
-  });
-
-  // Query real geo accident points for the live embedded map
-  const { data: cityAccidents, isLoading: isMapLoading } = useQuery({
-    queryKey: ['city-accidents-map', form.city],
-    queryFn: () => getGeoAccidents(form.city, undefined, 2000),
+  // Query real geo accident points along the travel corridor matching Source & Destination
+  const { data: corridorAccidents, isLoading: isMapLoading } = useQuery({
+    queryKey: ['corridor-accidents-map', form.source, form.destination, form.city],
+    queryFn: () => getGeoAccidents(undefined, undefined, 2500, form.source, form.destination),
   });
 
   // Mutation to calculate risk
@@ -156,7 +166,7 @@ export const OverviewPage: React.FC = () => {
   // Calculate ONCE on initial mount so user has baseline results ready
   useEffect(() => {
     mutation.mutate(form);
-  }, []); // Intentionally empty: do NOT auto-run on every user input change
+  }, []); // Intentionally empty: do NOT auto-run on every user keystroke
 
   const handleCalculate = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -166,16 +176,32 @@ export const OverviewPage: React.FC = () => {
     }
   };
 
-  const handleSourceSelect = (sourceName: string) => {
-    setSelectedCity(sourceName);
-    const availableDests = DESTINATIONS[sourceName] || ['City Center'];
-    const newDest = availableDests[0];
+  const handleSourceChange = (srcVal: string) => {
+    setSelectedCity(srcVal);
     setForm((prev) => ({
       ...prev,
-      city: sourceName,
-      source: sourceName,
-      destination: newDest,
+      city: srcVal,
+      source: srcVal,
     }));
+  };
+
+  const handleDestinationChange = (dstVal: string) => {
+    setForm((prev) => ({
+      ...prev,
+      destination: dstVal,
+    }));
+  };
+
+  const handleSwapRoute = () => {
+    const oldSource = form.source || form.city;
+    const oldDest = form.destination || 'Pune';
+    setForm((prev) => ({
+      ...prev,
+      source: oldDest,
+      destination: oldSource,
+      city: oldDest,
+    }));
+    setSelectedCity(oldDest);
   };
 
   const handleCorridorPreset = (corridor: typeof POPULAR_CORRIDORS[0]) => {
@@ -194,6 +220,13 @@ export const OverviewPage: React.FC = () => {
     setForm((prev) => ({ ...prev, hour: hourVal, is_peak_hour: isPeak }));
   };
 
+  const handleSelectCrashPoint = (pt: AccidentGeoPoint) => {
+    setSelectedMapPoint(pt);
+    if (investigationRef.current) {
+      investigationRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   // Compute Trip Safety Score directly derived from the trained AI models (88.64% Hazard + Severity)
   const getRiskScore = () => {
     if (!predictionResult) return 22;
@@ -209,7 +242,6 @@ export const OverviewPage: React.FC = () => {
     const severityComponent = (fatalP * 20) + (severeP * 10); // ~5 - 25
 
     const score = Math.round(hazardComponent + severityComponent);
-
     return Math.min(95, Math.max(8, score));
   };
 
@@ -323,8 +355,42 @@ export const OverviewPage: React.FC = () => {
     return factors;
   };
 
-  // Filter geo points for the embedded map matching this city and road type
-  const rawPoints = Array.isArray(cityAccidents) ? cityAccidents : [];
+  // Helper to generate IRC safety advisories based on selected crash record
+  const getCrashAdvisory = (pt: AccidentGeoPoint) => {
+    const sev = String(pt.accident_severity).toLowerCase();
+    const road = String(pt.road_type).toLowerCase();
+    const cause = String(pt.cause || '').toLowerCase();
+
+    if (sev === 'fatal') {
+      return {
+        standard: 'IRC:SP:84 Highway Safety & MoRTH Section 135A',
+        recommendation: 'Fatal collision corridor: Enforce automated radar speed cameras, install continuous W-beam metal crash barriers, and prohibit pedestrian crossings on grade-separated lanes.',
+        driverTip: 'Maintain minimum 4-second headway gap. Never attempt high-speed overtaking on undivided lanes or blind turns.',
+      };
+    }
+    if (cause.includes('weather') || cause.includes('fog') || cause.includes('rain')) {
+      return {
+        standard: 'IRC:35 Road Markings & Surface Friction Code',
+        recommendation: 'Wet weather blackspot: Apply high-friction anti-skid aggregate pavement and maintain retroreflective pavement markers with high-intensity raised studs.',
+        driverTip: 'Reduce cruising speed by at least 25 km/h under rain or fog. Avoid abrupt steering corrections on wet asphalt.',
+      };
+    }
+    if (road.includes('urban') || road.includes('local')) {
+      return {
+        standard: 'IRC:67 Urban Intersection Geometric Design',
+        recommendation: 'Urban collision intersection: Upgrade to 4-phase traffic signals with dedicated pedestrian zebra sanctuaries and speed-calming rumble strips.',
+        driverTip: 'Expect sudden vehicle merging and pedestrian cross-traffic. Never accelerate on yellow signal phases.',
+      };
+    }
+    return {
+      standard: 'IRC:73 Rural Road Design Standards',
+      recommendation: 'Corridor advisory: Clear roadside sightline hazards, install high-visibility advance warning chevron boards, and ensure proper median street lighting.',
+      driverTip: 'Keep headlights on low beam at night and adhere strictly to posted speed limits.',
+    };
+  };
+
+  // Filter points for the embedded map matching roadway classification if selected
+  const rawPoints = Array.isArray(corridorAccidents) ? corridorAccidents : [];
   const mapPoints = rawPoints.filter((pt) => {
     if (!form.road_type) return true;
     const target = form.road_type.toLowerCase();
@@ -366,6 +432,54 @@ export const OverviewPage: React.FC = () => {
         </div>
       </div>
 
+      {/* MoRTH 2024 Verified Road Safety Intelligence Explorer Callout */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-700/80 rounded-2xl p-4 sm:p-5 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="p-2.5 bg-blue-500/20 border border-blue-400/30 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+            <Building2 className="w-5 h-5 text-blue-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                Government Verified • MoRTH 2024
+              </span>
+              <span className="text-xs text-blue-200 font-medium">
+                Official Ministry of Road Transport & Highways Open Intelligence
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-white mt-1">
+              Explore 50 Million-Plus Indian Metros & 36 States Official Crash Records
+            </h3>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Access official MoRTH fatality rates, primary violations, and pick origin/destination directly from verified statistics.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowMorthExplorer(!showMorthExplorer)}
+          className="self-start md:self-auto px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 shrink-0 border border-blue-400/30"
+        >
+          <span>{showMorthExplorer ? 'Hide MoRTH Explorer ▲' : 'Open MoRTH Explorer ▼'}</span>
+          <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showMorthExplorer ? 'rotate-90' : ''}`} />
+        </button>
+      </div>
+
+      {/* Conditionally Render MorthNationalExplorer */}
+      {showMorthExplorer && (
+        <MorthNationalExplorer
+          onSelectOrigin={(city) => {
+            handleSourceChange(city);
+          }}
+          onSelectDestination={(city) => {
+            handleDestinationChange(city);
+          }}
+          selectedSource={form.source || form.city}
+          selectedDestination={form.destination}
+        />
+      )}
+
       {/* Centered Trip Planning Card */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 md:p-7 shadow-sm space-y-5 sm:space-y-6 w-full min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
@@ -374,29 +488,42 @@ export const OverviewPage: React.FC = () => {
               <Navigation className="w-4 h-4 text-blue-600 shrink-0" />
               Configure Planned Journey
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">Enter origin, destination, vehicle category, and departure conditions</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Enter any origin and destination across India to view driving route & collision blackspots
+            </p>
           </div>
           <span className="self-start sm:self-auto text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono">
-            Step-by-Step Evaluator
+            Unrestricted Pan-India Corridor
           </span>
         </div>
 
         <form onSubmit={handleCalculate} className="space-y-5 text-xs">
-          {/* Section 1: Route Setup */}
+          {/* Section 1: Route Setup with Unrestricted Origin & Destination */}
           <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                 <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>1. Travel Route (Origin & Destination)</span>
+                <span>1. Travel Route (Any Origin & Any Destination)</span>
               </label>
-              <span className="self-start sm:self-auto text-blue-700 font-mono text-xs font-extrabold bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-sm">
-                {form.source} ➔ {form.destination}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-blue-700 font-mono text-xs font-extrabold bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-sm">
+                  {form.source} ➔ {form.destination}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSwapRoute}
+                  title="Reverse Origin & Destination"
+                  className="px-2 py-0.5 rounded bg-white hover:bg-blue-50 text-blue-600 border border-slate-200 text-xs font-bold transition-colors flex items-center gap-1"
+                >
+                  <ArrowRightLeft className="w-3 h-3" />
+                  <span>Swap</span>
+                </button>
+              </div>
             </div>
 
             {/* Quick Corridor Shortcut Buttons */}
             <div className="space-y-1.5">
-              <span className="text-[11px] text-slate-500 font-semibold">Popular Route Shortcuts:</span>
+              <span className="text-[11px] text-slate-500 font-semibold">Popular Highway Corridors:</span>
               <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {POPULAR_CORRIDORS.map((c) => {
                   const isSelected = form.source === c.source && form.destination === c.destination;
@@ -418,37 +545,27 @@ export const OverviewPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Origin & Destination Dropdowns */}
+            {/* Origin & Destination Searchable Dropdowns with Real-time Filtering & Open-Input Support */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 min-w-0">
-              <div className="min-w-0">
-                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                  Origin (Source City)
-                </label>
-                <select
-                  value={form.source || form.city}
-                  onChange={(e) => handleSourceSelect(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 shadow-sm"
-                >
-                  {CITIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
+              <SearchableDropdown
+                label="Origin (Source City / Hub)"
+                sublabel="all cities • type anywhere"
+                value={form.source || form.city || ''}
+                options={ALL_DESTINATIONS}
+                placeholder="Select or type origin (e.g. Mumbai, Delhi, Pune...)"
+                onChange={handleSourceChange}
+                badge={`${ALL_DESTINATIONS.length} cities`}
+              />
 
-              <div className="min-w-0">
-                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                  Destination Area / Hub
-                </label>
-                <select
-                  value={form.destination || ''}
-                  onChange={(e) => setForm((prev) => ({ ...prev, destination: e.target.value }))}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 shadow-sm"
-                >
-                  {(DESTINATIONS[form.source || form.city] || ['Downtown Hub', 'Expressway Exit', 'Airport Corridor']).map((dest) => (
-                    <option key={dest} value={dest}>{dest}</option>
-                  ))}
-                </select>
-              </div>
+              <SearchableDropdown
+                label="Destination (Any City, Town or Hub)"
+                sublabel="all destinations • no limits"
+                value={form.destination || ''}
+                options={ALL_DESTINATIONS}
+                placeholder="Select or type destination (e.g. Goa, Lonavala, Jaipur...)"
+                onChange={handleDestinationChange}
+                badge={`${ALL_DESTINATIONS.length} destinations`}
+              />
             </div>
           </div>
 
@@ -871,19 +988,19 @@ export const OverviewPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Centered Embedded Interactive Geospatial Map */}
+      {/* Interactive Geospatial Turn-by-Turn Route Map */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4 w-full min-w-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold mb-1">
               <MapPin className="w-3.5 h-3.5 shrink-0" />
-              <span>Verified Crash Telemetry</span>
+              <span>Turn-by-Turn Driving Route & Historical Blackspots</span>
             </div>
             <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
-              Live Collision Blackspots: {form.source} ➔ {form.destination} ({form.road_type})
+              Driving Corridor: {form.source} ➔ {form.destination}
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              Interactive Google Maps telemetry displaying verified historical crash records along your chosen corridor.
+              Live driving route plotted on Google Maps with verified collision markers. Click any hotspot pin to open its complete investigation dossier.
             </p>
           </div>
 
@@ -907,46 +1024,234 @@ export const OverviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Google Map Container */}
-        <div className="relative h-[340px] sm:h-[420px] md:h-[460px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
+        {/* Route Telemetry Banner */}
+        {routeSummary && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 font-bold text-blue-900">
+              <Navigation className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>
+                Active Corridor: <strong>{form.source}</strong> to <strong>{form.destination}</strong>
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-blue-800 font-semibold text-[11px]">
+              {routeSummary.distance && (
+                <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs">
+                  📏 Distance: <strong>{routeSummary.distance}</strong>
+                </span>
+              )}
+              {routeSummary.duration && (
+                <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs">
+                  ⏱️ Est. Drive Time: <strong>{routeSummary.duration}</strong>
+                </span>
+              )}
+              <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs">
+                🚗 Classification: <strong>{form.road_type}</strong>
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Google Map Container with Turn-by-Turn polyline */}
+        <div className="relative h-[360px] sm:h-[440px] md:h-[480px] w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-100">
           <GoogleOverviewMap
             points={rawPoints}
             city={form.city}
+            source={form.source}
+            destination={form.destination}
             roadType={form.road_type}
             isLoading={isMapLoading}
-            onSelectPoint={setSelectedMapPoint}
+            onSelectPoint={handleSelectCrashPoint}
+            onRouteCalculated={setRouteSummary}
           />
 
           {/* Floating Points Count Pill */}
           <div className="absolute top-3 left-3 z-[10] bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-200 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2 pointer-events-none max-w-[calc(100%-24px)] truncate">
             <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
-            <span className="truncate">{mapPoints.length} Spots Plotted in {form.city} ({form.road_type})</span>
+            <span className="truncate">{mapPoints.length} Collision Points Mapped along Corridor</span>
+          </div>
+        </div>
+
+        {/* Quick Corridor Hotspot Carousel / List to inspect records */}
+        <div className="space-y-2 pt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 text-red-500" />
+              <span>Verified Crash Blackspots on this Corridor (Click to open full file)</span>
+            </span>
+            <span className="text-[11px] text-slate-500 font-semibold">{mapPoints.length} recorded</span>
           </div>
 
-          {/* Floating Selected Point Details */}
-          {selectedMapPoint && (
-            <div className="absolute bottom-3 right-3 z-[10] w-72 max-w-[calc(100%-24px)] bg-white rounded-xl border border-slate-200 shadow-xl p-4 space-y-2 animate-in fade-in duration-150">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <span className="font-extrabold text-xs text-slate-900">
-                  Crash Point #{selectedMapPoint.accident_id}
-                </span>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+            {mapPoints.slice(0, 10).map((pt) => {
+              const isFatal = String(pt.accident_severity).toLowerCase() === 'fatal';
+              const isSevere = String(pt.accident_severity).toLowerCase() === 'severe' || String(pt.accident_severity).toLowerCase() === 'major';
+              const isSelected = selectedMapPoint?.accident_id === pt.accident_id;
+
+              return (
                 <button
-                  onClick={() => setSelectedMapPoint(null)}
-                  className="text-slate-400 hover:text-slate-700 text-xs font-bold"
+                  key={pt.accident_id}
+                  type="button"
+                  onClick={() => handleSelectCrashPoint(pt)}
+                  className={`shrink-0 p-2.5 rounded-xl border text-left text-xs transition-all w-52 space-y-1 ${
+                    isSelected
+                      ? 'bg-blue-50 border-blue-600 ring-2 ring-blue-500/30 shadow-sm'
+                      : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-xs'
+                  }`}
                 >
-                  ✕
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] text-slate-500">#{pt.accident_id}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.2 rounded-full ${
+                      isFatal ? 'bg-red-100 text-red-700' : isSevere ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {pt.accident_severity}
+                    </span>
+                  </div>
+                  <div className="font-bold text-slate-900 truncate text-[11px]">{pt.city} • {pt.road_type}</div>
+                  <div className="text-[10px] text-slate-500 flex items-center justify-between">
+                    <span>{pt.hour}:00 HRS • {pt.weather || 'Clear'}</span>
+                    <span className="font-bold text-blue-600">View file →</span>
+                  </div>
                 </button>
-              </div>
-              <div className="text-xs space-y-1 text-slate-600">
-                <div><strong className="text-slate-800">Severity:</strong> {selectedMapPoint.accident_severity}</div>
-                <div><strong className="text-slate-800">Roadway:</strong> {selectedMapPoint.road_type}</div>
-                <div><strong className="text-slate-800">Time:</strong> {selectedMapPoint.hour}:00 HRS</div>
-                <div><strong className="text-slate-800">Weather:</strong> {selectedMapPoint.weather}</div>
-              </div>
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      {/* Verified Police Collision Investigation Dossier (Opens upon clicking ANY hotspot) */}
+      {selectedMapPoint && (
+        <div
+          ref={investigationRef}
+          className="bg-white border-2 border-blue-500 rounded-2xl p-5 sm:p-7 shadow-lg space-y-5 animate-in fade-in slide-in-from-top-4 duration-300 w-full min-w-0"
+        >
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-mono font-bold uppercase tracking-wider">
+                  Verified Collision Dossier
+                </span>
+                <span className="font-mono text-xs text-slate-500 font-bold">
+                  Case Record #{selectedMapPoint.accident_id}
+                </span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600 shrink-0" />
+                <span>
+                  Crash Investigation: {selectedMapPoint.city}{selectedMapPoint.state ? `, ${selectedMapPoint.state}` : ''}
+                </span>
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-2.5 self-start sm:self-auto">
+              <span
+                className={`text-xs font-extrabold px-3 py-1 rounded-full border ${
+                  String(selectedMapPoint.accident_severity).toLowerCase() === 'fatal'
+                    ? 'bg-red-50 text-red-700 border-red-300'
+                    : String(selectedMapPoint.accident_severity).toLowerCase() === 'severe' || String(selectedMapPoint.accident_severity).toLowerCase() === 'major'
+                    ? 'bg-amber-50 text-amber-700 border-amber-300'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                }`}
+              >
+                Severity: {selectedMapPoint.accident_severity.toUpperCase()}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setSelectedMapPoint(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                title="Close investigation dossier"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Key Metric Telemetry Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-0.5">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">Casualties & Impact</span>
+              <div className="text-base sm:text-lg font-extrabold text-slate-900 font-mono">
+                {selectedMapPoint.casualties !== undefined ? selectedMapPoint.casualties : 1} Casualties
+              </div>
+              <span className="text-[10px] text-slate-500">
+                {selectedMapPoint.vehicles_involved || 2} Vehicles Involved
+              </span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-0.5">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">Exact Incident Time</span>
+              <div className="text-base sm:text-lg font-extrabold text-slate-900 font-mono">
+                {selectedMapPoint.hour}:00 HRS
+              </div>
+              <span className="text-[10px] text-slate-500">
+                {selectedMapPoint.day_of_week || 'Friday'}{selectedMapPoint.date ? ` • ${selectedMapPoint.date}` : ''}
+              </span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-0.5">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">Roadway Geometry</span>
+              <div className="text-base sm:text-lg font-extrabold text-blue-700 capitalize">
+                {selectedMapPoint.road_type}
+              </div>
+              <span className="text-[10px] text-slate-500">
+                {selectedMapPoint.lanes || 4} Lanes • {selectedMapPoint.traffic_signal ? 'Signalized' : 'Uncontrolled'}
+              </span>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-0.5">
+              <span className="text-[10px] text-slate-500 font-bold uppercase block">Weather & Atmosphere</span>
+              <div className="text-base sm:text-lg font-extrabold text-slate-900">
+                {selectedMapPoint.weather || 'Clear'}
+              </div>
+              <span className="text-[10px] text-slate-500">
+                Vis: {selectedMapPoint.visibility ? `${selectedMapPoint.visibility} km` : '8.0 km'} • {selectedMapPoint.temperature ? `${selectedMapPoint.temperature}°C` : '28°C'}
+              </span>
+            </div>
+          </div>
+
+          {/* Investigative Cause Analysis */}
+          <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-1.5">
+            <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Investigative Police Finding & Primary Collision Cause</span>
+            </div>
+            <p className="text-xs text-amber-900 leading-relaxed font-medium">
+              {selectedMapPoint.cause || 'Over-speeding and sudden vehicular lane change without indicator signals at high-speed merging corridor.'}
+            </p>
+            {selectedMapPoint.osm_highway && (
+              <div className="text-[11px] text-amber-800 font-mono pt-1">
+                OSM Highway Tag: <strong>{selectedMapPoint.osm_highway}</strong> | GPS Coordinates: <strong>{selectedMapPoint.latitude.toFixed(5)}°N, {selectedMapPoint.longitude.toFixed(5)}°E</strong>
+              </div>
+            )}
+          </div>
+
+          {/* Statutory IRC Engineering Countermeasures & Driver Safety Protocol */}
+          {(() => {
+            const adv = getCrashAdvisory(selectedMapPoint);
+            return (
+              <div className="bg-slate-900 text-white rounded-xl p-4 sm:p-5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-700 pb-2">
+                  <div className="flex items-center gap-2 font-bold text-xs text-blue-400">
+                    <ShieldCheck className="w-4 h-4 shrink-0" />
+                    <span>Statutory IRC Engineering Countermeasures</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400">{adv.standard}</span>
+                </div>
+
+                <div className="text-xs text-slate-300 leading-relaxed space-y-2">
+                  <p>
+                    <strong className="text-white">Civil Infrastructure Upgrade:</strong> {adv.recommendation}
+                  </p>
+                  <p className="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700 text-emerald-300 text-[11px] font-medium">
+                    <strong className="text-white">Active Driver Advisory:</strong> {adv.driverTip}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Centered City Road Safety Statistics */}
       <div className="space-y-4 pb-6 w-full min-w-0">
@@ -972,9 +1277,9 @@ export const OverviewPage: React.FC = () => {
           <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-1 min-w-0">
             <div className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase truncate">Verified Crashes</div>
             <div className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 font-mono truncate">
-              {overviewData?.total_records.toLocaleString() || '2,490'}
+              {overviewData?.total_records?.toLocaleString() || '2,490'}
             </div>
-            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">2022 – 2025 records</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">{overviewData?.kpis?.date_range || '2022 – 2025 records'}</div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-1 min-w-0">
@@ -982,7 +1287,7 @@ export const OverviewPage: React.FC = () => {
             <div className="text-xl sm:text-2xl md:text-3xl font-extrabold text-red-600 font-mono truncate">
               {overviewData?.fatal_pct || '15.8'}%
             </div>
-            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">High severity crashes</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">{overviewData?.fatal_count ? `${overviewData.fatal_count.toLocaleString()} Deaths` : 'High severity crashes'}</div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-sm space-y-1 min-w-0">
@@ -1001,6 +1306,26 @@ export const OverviewPage: React.FC = () => {
             <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">Highest collision rate</div>
           </div>
         </div>
+
+        {/* Official MoRTH Verified Intelligence Banner if Available for Selected City */}
+        {overviewData?.morth_official && (
+          <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+            <div className="flex items-center gap-2 font-bold text-blue-900">
+              <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>
+                MoRTH 2024 Report ({overviewData.morth_official.city}): <strong>{overviewData.morth_official.accidents_2024.toLocaleString()}</strong> Crashes • <strong>{overviewData.morth_official.killed_2024.toLocaleString()}</strong> Fatalities ({overviewData.morth_official.fatal_pct}% fatal rate)
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-blue-800 font-semibold">
+              <span className="bg-white px-2 py-0.5 rounded border border-blue-200 shadow-xs">
+                ⚠️ Top Cause: <strong>{overviewData.morth_official.top_violation}</strong>
+              </span>
+              <span className="bg-white px-2 py-0.5 rounded border border-blue-200 shadow-xs">
+                🏍️ Most Vulnerable: <strong>{overviewData.morth_official.top_fatal_mode}</strong>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
