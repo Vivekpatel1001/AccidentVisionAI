@@ -62,101 +62,101 @@
   "validation_records": 6061,
   "holdout_records": 1734,
   "validation_metrics": {
-    "accuracy": 0.8779079359841611,
-    "roc_auc": 0.9541678646008956,
-    "f1_score": 0.8272642390289449,
-    "balanced_accuracy": 0.8639955395436609,
-    "training_time_sec": 0.96
+    "accuracy": 0.7746246493977892,
+    "roc_auc": 0.8317013802707631,
+    "f1_score": 0.62348401323043,
+    "balanced_accuracy": 0.7223763783014956,
+    "training_time_sec": 0.81
   },
   "holdout_metrics": {
-    "accuracy": 0.8863898500576701,
-    "roc_auc": 0.9608541274325173,
-    "f1_score": 0.85041761579347,
-    "balanced_accuracy": 0.876647834274953
+    "accuracy": 0.7975778546712803,
+    "roc_auc": 0.8590666627801906,
+    "f1_score": 0.6555446516192346,
+    "balanced_accuracy": 0.746449627435248
   },
   "all_model_benchmarks": {
     "Random Forest": {
-      "accuracy": 0.8604190727602706,
-      "roc_auc": 0.941538443336232,
-      "f1_score": 0.7955534074432092,
-      "balanced_accuracy": 0.8376033624978556,
-      "training_time_sec": 0.89
+      "accuracy": 0.7322224055436397,
+      "roc_auc": 0.7391170101614205,
+      "f1_score": 0.4529828109201213,
+      "balanced_accuracy": 0.6310220572826486,
+      "training_time_sec": 0.95
     },
     "CatBoost Classifier": {
-      "accuracy": 0.86553374030688,
-      "roc_auc": 0.9483248442685501,
-      "f1_score": 0.8094458732756605,
-      "balanced_accuracy": 0.8501955738548637,
-      "training_time_sec": 4.11
+      "accuracy": 0.732717373370731,
+      "roc_auc": 0.7786649802800769,
+      "f1_score": 0.5352839931153184,
+      "balanced_accuracy": 0.6654444822609866,
+      "training_time_sec": 4.61
     },
     "XGBoost Classifier (Tuned)": {
-      "accuracy": 0.8779079359841611,
-      "roc_auc": 0.9541678646008956,
-      "f1_score": 0.8272642390289449,
-      "balanced_accuracy": 0.8639955395436609,
-      "training_time_sec": 0.96
+      "accuracy": 0.7746246493977892,
+      "roc_auc": 0.8317013802707631,
+      "f1_score": 0.62348401323043,
+      "balanced_accuracy": 0.7223763783014956,
+      "training_time_sec": 0.81
     }
   },
   "top_features": [
     {
       "feature": "city_Mumbai",
-      "importance": 0.2741050720214844
-    },
-    {
-      "feature": "city_Kolkata",
-      "importance": 0.22807326912879944
-    },
-    {
-      "feature": "city_Chandigarh",
-      "importance": 0.18111716210842133
-    },
-    {
-      "feature": "city_Chennai",
-      "importance": 0.10192891210317612
-    },
-    {
-      "feature": "longitude",
-      "importance": 0.029695384204387665
-    },
-    {
-      "feature": "city_Hyderabad",
-      "importance": 0.02141624316573143
-    },
-    {
-      "feature": "city_Bangalore",
-      "importance": 0.019454775378108025
+      "importance": 0.15827220678329468
     },
     {
       "feature": "city_Delhi",
-      "importance": 0.019267311319708824
+      "importance": 0.07906147092580795
     },
     {
-      "feature": "city_Pune",
-      "importance": 0.01739945076406002
+      "feature": "city_Kolkata",
+      "importance": 0.0776820182800293
+    },
+    {
+      "feature": "city_Chennai",
+      "importance": 0.054032694548368454
     },
     {
       "feature": "latitude",
-      "importance": 0.011431930586695671
+      "importance": 0.04241654649376869
+    },
+    {
+      "feature": "longitude",
+      "importance": 0.04086393117904663
+    },
+    {
+      "feature": "city_Chandigarh",
+      "importance": 0.031186403706669807
     },
     {
       "feature": "osm_highway_residential",
-      "importance": 0.00881721917539835
+      "importance": 0.028463153168559074
     },
     {
-      "feature": "osm_highway_primary",
-      "importance": 0.006016567349433899
+      "feature": "osm_highway_tertiary",
+      "importance": 0.02558816410601139
     },
     {
-      "feature": "distance_to_road_m",
-      "importance": 0.004846091847866774
+      "feature": "city_Bangalore",
+      "importance": 0.024756530299782753
     },
     {
-      "feature": "osm_highway_trunk",
-      "importance": 0.004359177313745022
+      "feature": "population_density_1km",
+      "importance": 0.022977538406848907
+    },
+    {
+      "feature": "osm_highway_secondary",
+      "importance": 0.02035614661872387
     },
     {
       "feature": "log_population_density",
-      "importance": 0.0035615621600300074
+      "importance": 0.02000630833208561
+    },
+    {
+      "feature": "kinetic_energy_index",
+      "importance": 0.01915835216641426
+    },
+    {
+      "feature": "design_speed_kmh",
+      "importance": 0.018710309639573097
     }
   ],
   "data_sources": [
@@ -164,5 +164,5 @@
     "WorldPop 1-km Global Demographic Density (University of Southampton)",
     "OpenStreetMap Road Classification & IRC:73 Design Standards"
   ],
-  "created_utc": "2026-10-22T17:48:50.049453+00:00"
+  "created_utc": "2026-10-22T18:22:55.375241+00:00"
 }

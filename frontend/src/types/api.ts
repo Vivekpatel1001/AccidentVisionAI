@@ -203,6 +203,8 @@ export interface PredictRequest {
   osm_road_length_m?: number;
   distance_to_road_m?: number;
   vehicle_type?: string;
+  source?: string;
+  destination?: string;
   is_divided_carriageway?: boolean;
   cruising_speed_kmh?: number;
 }

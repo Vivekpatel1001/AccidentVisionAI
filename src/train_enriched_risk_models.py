@@ -94,23 +94,24 @@ def load_and_enrich_dataset(data_path: str = DATA_PATH, pop_tiff_path: str = POP
     df["kinetic_energy_index"] = (df["design_speed_kmh"] / 10.0) ** 2
     df["is_divided_carriageway"] = ((df["lanes"] >= 4) | (df["osm_highway"].isin(["motorway", "trunk"]))).astype(int)
 
-    # 3. Add Spatial Collision Density (strictly from Training Set 2022-2023 to prevent leakage)
+    # 3. Add Spatial Collision Density calibrated per metropolitan zone (strictly from Training Set 2022-2023)
     df["_date"] = pd.to_datetime(df["date"])
     df["_year"] = df["_date"].dt.year
-    train_mask = df["_year"].isin([2022, 2023])
 
-    train_coords = df.loc[train_mask, ["latitude", "longitude"]].dropna().values
-    train_tree = cKDTree(np.radians(train_coords))
+    city_dfs = []
+    r_rad = 2.0 / 6371.0  # 2.0 km corridor radius
+    for city, grp in df.groupby("city"):
+        grp = grp.copy()
+        train_city = grp[grp["_year"].isin([2022, 2023])]
+        coords = train_city[["latitude", "longitude"]].dropna().values
+        tree = cKDTree(np.radians(coords))
+        d = [len(tree.query_ball_point(np.radians([lat, lon]), r_rad)) for lat, lon in zip(grp["latitude"], grp["longitude"])]
+        grp["corridor_crash_density"] = d
+        thresh = float(grp.loc[grp["_year"].isin([2022, 2023]), "corridor_crash_density"].quantile(0.65))
+        grp["is_high_hazard_corridor"] = (grp["corridor_crash_density"] >= thresh).astype(int)
+        city_dfs.append(grp)
 
-    # Radius 1.5 km (~ 1.5 / 6371 radians)
-    r_rad = 1.5 / 6371.0
-    densities = [len(train_tree.query_ball_point(np.radians([lat, lon]), r_rad)) for lat, lon in zip(df["latitude"], df["longitude"])]
-    df["corridor_crash_density"] = densities
-
-    # Target: High-Hazard Corridor (Top 40% density bottleneck)
-    density_thresh = float(df.loc[train_mask, "corridor_crash_density"].quantile(0.60))
-    df["is_high_hazard_corridor"] = (df["corridor_crash_density"] >= density_thresh).astype(int)
-
+    df = pd.concat(city_dfs).sort_index()
     return df
 
 

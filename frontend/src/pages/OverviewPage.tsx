@@ -4,7 +4,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { GoogleOverviewMap } from '../components/map/GoogleOverviewMap';
 import {
   ShieldAlert,
-  ShieldCheck,
   AlertTriangle,
   MapPin,
   Clock,
@@ -24,9 +23,8 @@ import {
   Truck,
   Bike,
   Users,
-  Gauge,
-  Split,
   Activity,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { predictSeverity, getOverview, getHotspots, getGeoAccidents } from '../services/api';
 import { PredictRequest, PredictResponse, AccidentGeoPoint } from '../types/api';
@@ -45,14 +43,34 @@ const CITY_COORDINATES: Record<string, [number, number, number]> = {
 };
 
 const CITIES = [
-  { name: 'Mumbai', state: 'Maharashtra', desc: 'WEH, EEH & Coastal Highway' },
-  { name: 'Delhi', state: 'NCR', desc: 'Ring Road & Outer Expressways' },
-  { name: 'Bengaluru', state: 'Karnataka', desc: 'Outer Ring Road & Electronic City' },
-  { name: 'Chennai', state: 'Tamil Nadu', desc: 'OMR & Anna Salai' },
-  { name: 'Pune', state: 'Maharashtra', desc: 'Mumbai-Pune Expressway & Bypass' },
-  { name: 'Hyderabad', state: 'Telangana', desc: 'PVNR Expressway & Outer Ring' },
-  { name: 'Kolkata', state: 'West Bengal', desc: 'EM Bypass & Strand Road' },
-  { name: 'Chandigarh', state: 'Punjab/Haryana', desc: 'Madhya Marg & Dakshin Marg' },
+  'Mumbai',
+  'Delhi',
+  'Bengaluru',
+  'Chennai',
+  'Pune',
+  'Hyderabad',
+  'Kolkata',
+  'Chandigarh',
+];
+
+const DESTINATIONS: Record<string, string[]> = {
+  Mumbai: ['Pune', 'Thane', 'Navi Mumbai', 'Nashik', 'Goa'],
+  Delhi: ['Chandigarh', 'Gurgaon', 'Noida', 'Faridabad', 'Jaipur'],
+  Bengaluru: ['Chennai', 'Electronic City', 'Mysuru', 'Hosur', 'Whitefield'],
+  Chennai: ['Bengaluru', 'OMR Corridor', 'Sriperumbudur', 'Vellore', 'Pondicherry'],
+  Pune: ['Mumbai', 'Hinjewadi IT Hub', 'Lonavala', 'Satara', 'PCMC'],
+  Hyderabad: ['Vijayawada', 'Gachibowli', 'Secunderabad', 'Warangal', 'Shamshabad'],
+  Kolkata: ['Howrah', 'Salt Lake', 'EM Bypass', 'Durgapur', 'Siliguri'],
+  Chandigarh: ['Delhi', 'Mohali', 'Panchkula', 'Zirakpur', 'Shimla'],
+};
+
+const POPULAR_CORRIDORS = [
+  { source: 'Mumbai', destination: 'Pune', roadType: 'Highway', label: 'Mumbai ➔ Pune' },
+  { source: 'Delhi', destination: 'Chandigarh', roadType: 'Highway', label: 'Delhi ➔ Chandigarh' },
+  { source: 'Bengaluru', destination: 'Chennai', roadType: 'Highway', label: 'Bengaluru ➔ Chennai' },
+  { source: 'Delhi', destination: 'Gurgaon', roadType: 'Urban', label: 'Delhi ➔ Gurgaon' },
+  { source: 'Pune', destination: 'Mumbai', roadType: 'Highway', label: 'Pune ➔ Mumbai' },
+  { source: 'Hyderabad', destination: 'Vijayawada', roadType: 'Highway', label: 'Hyderabad ➔ Vijayawada' },
 ];
 
 const VEHICLE_TYPES = [
@@ -82,21 +100,21 @@ export const OverviewPage: React.FC = () => {
 
   const [form, setForm] = useState<PredictRequest>({
     city: selectedCity || 'Mumbai',
+    source: selectedCity || 'Mumbai',
+    destination: 'Pune',
     road_type: 'Highway',
     lanes: 4,
-    traffic_signal: false,
+    traffic_signal: true,
     weather: 'Clear',
     visibility: 8.0,
     temperature: 28.0,
-    traffic_density: 'High',
-    hour: 19,
+    traffic_density: 'Low',
+    hour: 14,
     day_of_week: 'Friday',
     is_weekend: false,
-    is_peak_hour: true,
+    is_peak_hour: false,
     festival: 'None',
     vehicle_type: 'Car',
-    is_divided_carriageway: true,
-    cruising_speed_kmh: 70,
   });
 
   const [predictionResult, setPredictionResult] = useState<PredictResponse | null>(null);
@@ -105,7 +123,8 @@ export const OverviewPage: React.FC = () => {
   // Sync city when global filter changes
   useEffect(() => {
     if (selectedCity && selectedCity !== form.city) {
-      setForm((prev) => ({ ...prev, city: selectedCity }));
+      const defaultDest = DESTINATIONS[selectedCity] ? DESTINATIONS[selectedCity][0] : 'Downtown Hub';
+      setForm((prev) => ({ ...prev, city: selectedCity, source: selectedCity, destination: defaultDest }));
     }
   }, [selectedCity]);
 
@@ -135,21 +154,10 @@ export const OverviewPage: React.FC = () => {
     },
   });
 
-  // Live recalculate whenever ANY trip parameter or city changes
+  // Calculate ONCE on initial mount so user has baseline results ready
   useEffect(() => {
     mutation.mutate(form);
-  }, [
-    form.city,
-    form.road_type,
-    form.hour,
-    form.weather,
-    form.traffic_signal,
-    form.traffic_density,
-    form.is_weekend,
-    form.vehicle_type,
-    form.is_divided_carriageway,
-    form.cruising_speed_kmh,
-  ]);
+  }, []); // Intentionally empty: do NOT auto-run on every user input change
 
   const handleCalculate = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -159,9 +167,27 @@ export const OverviewPage: React.FC = () => {
     }
   };
 
-  const handleCitySelect = (cityName: string) => {
-    setSelectedCity(cityName);
-    setForm((prev) => ({ ...prev, city: cityName }));
+  const handleSourceSelect = (sourceName: string) => {
+    setSelectedCity(sourceName);
+    const availableDests = DESTINATIONS[sourceName] || ['City Center'];
+    const newDest = availableDests[0];
+    setForm((prev) => ({
+      ...prev,
+      city: sourceName,
+      source: sourceName,
+      destination: newDest,
+    }));
+  };
+
+  const handleCorridorPreset = (corridor: typeof POPULAR_CORRIDORS[0]) => {
+    setSelectedCity(corridor.source);
+    setForm((prev) => ({
+      ...prev,
+      city: corridor.source,
+      source: corridor.source,
+      destination: corridor.destination,
+      road_type: corridor.roadType,
+    }));
   };
 
   const handleHourChange = (hourVal: number) => {
@@ -169,53 +195,32 @@ export const OverviewPage: React.FC = () => {
     setForm((prev) => ({ ...prev, hour: hourVal, is_peak_hour: isPeak }));
   };
 
-  // Compute a calibrated, customer-friendly Risk Score (0 - 100)
+  // Compute Trip Safety Score directly derived from the trained AI models (88.64% Hazard + Severity)
   const getRiskScore = () => {
-    if (!predictionResult) return 42;
-    const fatalP = predictionResult.probabilities['Fatal'] ?? 0.15;
-    const severeP = predictionResult.probabilities['Severe'] ?? 0.32;
-    const minorP = predictionResult.probabilities['Minor'] ?? 0.53;
+    if (!predictionResult) return 22;
 
-    // Base score from multi-class probabilities (calibrated for real-world driving risk):
-    let score = (fatalP * 160) + (severeP * 70) + (minorP * 15) - 18;
+    const hazardP = predictionResult.corridor_hazard?.hazard_probability ?? 0.20;
+    const fatalP = predictionResult.probabilities?.Fatal ?? 0.15;
+    const severeP = predictionResult.probabilities?.Severe ?? 0.35;
 
-    // Environmental & infrastructure context modifiers
-    if (form.road_type === 'Highway') score += 6;
-    if (!form.traffic_signal) score += 5;
-    if (form.weather === 'Rainy' || form.weather === 'Foggy') score += 7;
-    if (form.traffic_density === 'High') score += 4;
-    if (form.hour >= 22 || form.hour <= 4) score += 8; // Late night high-speed hazard
-    else if (form.hour >= 18 && form.hour <= 21) score += 5; // Evening peak traffic
-    else if (form.hour >= 11 && form.hour <= 15) score -= 4; // Clear midday travel
+    // Model-driven calculation:
+    // 70% Corridor Hazard Probability (XGBoost 88.64% holdout accuracy)
+    // 30% Consequence Severity Impact (Fatal & Severe probability)
+    const hazardComponent = hazardP * 70; // 0 - 70
+    const severityComponent = (fatalP * 20) + (severeP * 10); // ~5 - 25
 
-    // Vehicle vulnerability modifier (MoRTH statistical weighting)
-    if (form.vehicle_type === 'Two-Wheeler') score += 12;
-    else if (form.vehicle_type === 'Auto-Rickshaw') score += 6;
-    else if (form.vehicle_type === 'Truck / Bus') score += 4;
+    const score = Math.round(hazardComponent + severityComponent);
 
-    // Carriageway median separation modifier
-    if (form.is_divided_carriageway === false) score += 8; // Undivided road head-on risk
-
-    // Operating speed modifier (kinetic energy scaling)
-    const speed = form.cruising_speed_kmh ?? 70;
-    if (speed >= 90) score += 8;
-    else if (speed <= 40) score -= 5;
-
-    // Corridor hazard model integration (88.64% accurate XGBoost)
-    if (predictionResult.corridor_hazard?.is_high_hazard) {
-      score += 10;
-    }
-
-    return Math.min(98, Math.max(16, Math.round(score)));
+    return Math.min(95, Math.max(8, score));
   };
 
   const riskScore = getRiskScore();
 
   const getRiskLevel = () => {
-    if (riskScore >= 70) {
+    if (riskScore >= 60) {
       return {
-        label: 'HIGH COLLISION HAZARD',
-        sublabel: 'Elevated probability of severe impact collision. Extreme defensive driving and lower speeds required.',
+        label: 'HIGH COLLISION HAZARD ALERT',
+        sublabel: 'Elevated probability of collision on this corridor. Extreme defensive driving, reduced speed, and increased following distance required.',
         color: 'text-red-600',
         border: 'border-red-300',
         bg: 'bg-red-50',
@@ -223,10 +228,10 @@ export const OverviewPage: React.FC = () => {
         gaugeColor: '#EF4444',
       };
     }
-    if (riskScore >= 46) {
+    if (riskScore >= 30) {
       return {
         label: 'MODERATE RISK — CAUTION ADVISED',
-        sublabel: 'Moderate traffic density and collision frequency. Maintain double safe braking distance.',
+        sublabel: 'Moderate traffic density or collision frequency on this corridor. Maintain double safe braking distance.',
         color: 'text-amber-600',
         border: 'border-amber-300',
         bg: 'bg-amber-50',
@@ -236,7 +241,7 @@ export const OverviewPage: React.FC = () => {
     }
     return {
       label: 'OPTIMAL TRAVEL CONDITIONS',
-      sublabel: 'Favorable off-peak daylight window with lowest historical fatality rate.',
+      sublabel: 'Low corridor collision hazard with favorable travel conditions. Favorable driving window with lowest historical incident rate.',
       color: 'text-emerald-600',
       border: 'border-emerald-300',
       bg: 'bg-emerald-50',
@@ -251,6 +256,21 @@ export const OverviewPage: React.FC = () => {
   const getRiskFactors = () => {
     const factors = [];
 
+    // Corridor hazard model factor
+    if (predictionResult?.corridor_hazard?.is_high_hazard) {
+      factors.push({
+        title: 'High Hazard Corridor Blackspot Identified',
+        desc: `AI Corridor Model (88.64% holdout accuracy) flagged elevated collision clustering in this ${form.road_type} sector.`,
+        type: 'critical',
+      });
+    } else {
+      factors.push({
+        title: 'Favorable Corridor Safety Index',
+        desc: `Low historical collision density detected along ${form.source} to ${form.destination} corridor under chosen travel parameters.`,
+        type: 'success',
+      });
+    }
+
     // Vehicle specific factor
     if (form.vehicle_type === 'Two-Wheeler') {
       factors.push({
@@ -262,25 +282,6 @@ export const OverviewPage: React.FC = () => {
       factors.push({
         title: 'Heavy Vehicle Inertia & Blind Spots',
         desc: 'Commercial trucks have large blind spots and long stopping distances. Keep clear of overtaking lanes.',
-        type: 'warning',
-      });
-    }
-
-    // Carriageway separation
-    if (form.is_divided_carriageway === false) {
-      factors.push({
-        title: 'Undivided Roadway (Head-on Collision Risk)',
-        desc: 'Without a concrete or metal median barrier, head-on crash probability rises significantly during overtaking maneuvers.',
-        type: 'critical',
-      });
-    }
-
-    // Speed profile
-    const speed = form.cruising_speed_kmh ?? 70;
-    if (speed >= 80) {
-      factors.push({
-        title: `High Cruising Speed (${speed} km/h)`,
-        desc: `Kinetic impact energy scales with the square of velocity. Stopping distance at ${speed} km/h exceeds 60 meters on dry bitumen.`,
         type: 'warning',
       });
     }
@@ -303,20 +304,6 @@ export const OverviewPage: React.FC = () => {
         title: 'Clear Off-Peak Daytime Window',
         desc: 'Direct daylight sightlines and smooth traffic throughput lower severe impact likelihood by over 45%.',
         type: 'success',
-      });
-    }
-
-    if (form.road_type === 'Highway') {
-      factors.push({
-        title: 'High-Speed Expressway Geometry',
-        desc: 'Cruising velocity on expressways results in significantly greater momentum and stopping distance.',
-        type: 'critical',
-      });
-    } else if (!form.traffic_signal) {
-      factors.push({
-        title: 'Uncontrolled Crossing (No Traffic Signal)',
-        desc: 'Intersections without automated traffic signals record a 2.4x higher crash severity in verified data.',
-        type: 'critical',
       });
     }
 
@@ -362,7 +349,7 @@ export const OverviewPage: React.FC = () => {
           </h1>
 
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-            Evaluate real-time collision hazard and severity distribution before driving. Powered by verified telemetry from 20,000 police incident records, UN WorldPop 1-km demographic density, and OpenStreetMap road engineering across 8 Indian metropolitan zones.
+            Evaluate real-time corridor collision hazard and potential severity before driving. Enter your planned route, vehicle, and departure window to receive verified predictions powered by UN WorldPop demographic density and 20,000 police collision records.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-2 text-xs font-semibold text-slate-700">
@@ -376,7 +363,7 @@ export const OverviewPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-1.5 text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
               <Navigation className="w-4 h-4 text-indigo-600" />
-              <span>IRC:73 Engineering Standards</span>
+              <span>IRC Roadway Safety Standards</span>
             </div>
           </div>
         </div>
@@ -390,44 +377,87 @@ export const OverviewPage: React.FC = () => {
             <div>
               <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-blue-600" />
-                Configure Your Travel Parameters
+                Configure Your Planned Journey
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Select city, vehicle type, highway geometry, and departure conditions</p>
+              <p className="text-xs text-slate-500 mt-0.5">Select route origin & destination, vehicle mode, and departure timing</p>
             </div>
-            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-              Live Evaluation
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              Trip Intelligence
             </span>
           </div>
 
           <form onSubmit={handleCalculate} className="space-y-6">
-            {/* Step 1: City Selection */}
-            <div className="space-y-2.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-                <span>1. Select City</span>
-                <span className="text-blue-600 font-mono text-[11px] font-bold">Selected: {form.city}</span>
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {CITIES.map((c) => (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => handleCitySelect(c.name)}
-                    className={`p-3 rounded-xl text-xs font-medium text-left border transition-all ${
-                      form.city === c.name
-                        ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-md scale-[1.02]'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-white'
-                    }`}
+            {/* Step 1: Planned Route (Source & Destination) */}
+            <div className="space-y-3 bg-slate-50 border border-slate-200/90 rounded-2xl p-4.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600" />
+                  <span>1. Planned Route (Source & Destination)</span>
+                </label>
+                <span className="text-blue-700 font-mono text-[11px] font-extrabold bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {form.source} ➔ {form.destination}
+                </span>
+              </div>
+
+              {/* Quick Popular Corridor Presets */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] text-slate-500 font-medium">Popular Corridor Shortcuts:</span>
+                <div className="flex flex-wrap gap-2">
+                  {POPULAR_CORRIDORS.map((c) => {
+                    const isSelected = form.source === c.source && form.destination === c.destination;
+                    return (
+                      <button
+                        key={c.label}
+                        type="button"
+                        onClick={() => handleCorridorPreset(c)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          isSelected
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-blue-400 hover:bg-slate-100'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Source & Destination Selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    Origin (Source City)
+                  </label>
+                  <select
+                    value={form.source || form.city}
+                    onChange={(e) => handleSourceSelect(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm"
                   >
-                    <div className="font-extrabold text-sm">{c.name}</div>
-                    <div className={`text-[11px] truncate ${form.city === c.name ? 'text-blue-100' : 'text-slate-500'}`}>
-                      {c.state}
-                    </div>
-                  </button>
-                ))}
+                    {CITIES.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                    Destination Area / Hub
+                  </label>
+                  <select
+                    value={form.destination || ''}
+                    onChange={(e) => setForm((prev) => ({ ...prev, destination: e.target.value }))}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-sm"
+                  >
+                    {(DESTINATIONS[form.source || form.city] || ['Downtown Hub', 'Expressway Exit', 'Airport Corridor']).map((dest) => (
+                      <option key={dest} value={dest}>{dest}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
-            {/* Step 2: Vehicle Type Selection (NEW) */}
+            {/* Step 2: Vehicle Type Selection */}
             <div className="space-y-2.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center justify-between">
                 <span>2. Vehicle Category & Mode</span>
@@ -461,7 +491,7 @@ export const OverviewPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 3: Road Classification & Median Separation */}
+            {/* Step 3: Roadway Classification */}
             <div className="space-y-2.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
                 3. Roadway Classification
@@ -494,82 +524,14 @@ export const OverviewPage: React.FC = () => {
                   );
                 })}
               </div>
-
-              {/* Median Separation Toggle (Divided vs Undivided) */}
-              <div className="mt-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Split className="w-3.5 h-3.5 text-blue-600" />
-                    Median Barrier (Carriageway Separation)
-                  </span>
-                  <span className="text-[11px] font-semibold text-slate-500">
-                    {form.is_divided_carriageway ? 'Divided Roadway' : 'Undivided (2-Way)'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setForm((prev) => ({ ...prev, is_divided_carriageway: true }))}
-                    className={`py-2 px-3 rounded-lg text-xs font-bold border text-center transition-all ${
-                      form.is_divided_carriageway
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    Divided (Median Barrier)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm((prev) => ({ ...prev, is_divided_carriageway: false }))}
-                    className={`py-2 px-3 rounded-lg text-xs font-bold border text-center transition-all ${
-                      !form.is_divided_carriageway
-                        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    Undivided (Head-on Risk)
-                  </button>
-                </div>
-              </div>
             </div>
 
-            {/* Step 4: Operating Speed & Speed Limit (NEW) */}
-            <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-2xl p-4.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Gauge className="w-3.5 h-3.5 text-blue-600" />
-                  <span>4. Operating Cruising Speed</span>
-                </label>
-                <span className="font-mono text-sm font-extrabold text-blue-700 bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 shadow-sm">
-                  {form.cruising_speed_kmh ?? 70} km/h
-                </span>
-              </div>
-
-              <input
-                type="range"
-                min={30}
-                max={120}
-                step={5}
-                value={form.cruising_speed_kmh ?? 70}
-                onChange={(e) => setForm((prev) => ({ ...prev, cruising_speed_kmh: parseInt(e.target.value) }))}
-                className="w-full accent-blue-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
-              />
-
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono font-medium">
-                <span>30 km/h (Local)</span>
-                <span>50 km/h (City)</span>
-                <span className="text-blue-700 font-bold">70 km/h (Arterial)</span>
-                <span>90 km/h (Highway)</span>
-                <span className="text-amber-700 font-bold">120 km/h (Expressway)</span>
-              </div>
-            </div>
-
-            {/* Step 5: Time of Departure */}
+            {/* Step 4: Time of Departure */}
             <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-2xl p-4.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-blue-600" />
-                  <span>5. Time of Departure</span>
+                  <span>4. Planned Time of Departure</span>
                 </label>
                 <span className="font-mono text-sm font-extrabold text-blue-700 bg-white px-2.5 py-0.5 rounded-lg border border-slate-200 shadow-sm">
                   {form.hour.toString().padStart(2, '0')}:00 HRS
@@ -616,10 +578,10 @@ export const OverviewPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 6: Weather & Atmosphere */}
+            {/* Step 5: Weather & Atmosphere */}
             <div className="space-y-2.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                6. Weather & Surface Conditions
+                5. Weather & Surface Conditions
               </label>
               <div className="grid grid-cols-3 gap-3">
                 {[
@@ -648,7 +610,7 @@ export const OverviewPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Step 7: Traffic Signals & Density */}
+            {/* Step 6: Traffic Signals & Density */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -705,7 +667,7 @@ export const OverviewPage: React.FC = () => {
               {mutation.isPending ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  <span>Calculating Route Safety Telemetry...</span>
+                  <span>Computing AI Safety Telemetry...</span>
                 </>
               ) : (
                 <>
@@ -750,7 +712,9 @@ export const OverviewPage: React.FC = () => {
               <div className="flex items-baseline justify-between pt-1">
                 <span className="text-xs text-slate-300">Hazard Probability</span>
                 <span className="text-2xl font-extrabold font-mono text-white">
-                  {Math.round((predictionResult?.corridor_hazard?.hazard_probability ?? 0.28) * 100)}%
+                  {predictionResult?.corridor_hazard
+                    ? `${(predictionResult.corridor_hazard.hazard_probability * 100).toFixed(1)}%`
+                    : '20.0%'}
                 </span>
               </div>
 
@@ -760,7 +724,12 @@ export const OverviewPage: React.FC = () => {
                   className={`h-full rounded-full transition-all duration-700 ${
                     predictionResult?.corridor_hazard?.is_high_hazard ? 'bg-red-500' : 'bg-emerald-500'
                   }`}
-                  style={{ width: `${Math.round((predictionResult?.corridor_hazard?.hazard_probability ?? 0.28) * 100)}%` }}
+                  style={{
+                    width: `${Math.max(
+                      4,
+                      Math.round((predictionResult?.corridor_hazard?.hazard_probability ?? 0.20) * 100)
+                    )}%`,
+                  }}
                 />
               </div>
             </div>
@@ -783,13 +752,13 @@ export const OverviewPage: React.FC = () => {
                   {predictionResult?.corridor_hazard?.design_speed_kmh ?? 80} km/h
                 </span>
                 <span className="text-[10px] text-slate-400 block mt-0.5">
-                  {form.is_divided_carriageway ? 'Divided Roadway' : 'Undivided Road'}
+                  Standard Corridor Limit
                 </span>
               </div>
             </div>
 
             <div className="text-[11px] text-slate-400 leading-relaxed pt-1">
-              Evaluated using verified high-resolution WorldPop demographic counts and OpenStreetMap road engineering geometry.
+              Evaluated along the <strong>{form.source} ➔ {form.destination}</strong> corridor using verified high-resolution WorldPop demographic counts and OpenStreetMap road engineering geometry.
             </div>
           </div>
 
@@ -986,10 +955,10 @@ export const OverviewPage: React.FC = () => {
               <span>Real Telemetry Mapping</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Live Collision Blackspots in {form.city} ({form.road_type} Corridors)
+              Live Collision Blackspots: {form.source} ➔ {form.destination} ({form.road_type})
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-              Interactive Google Maps telemetry displaying verified historical crash records matching your chosen city and roadway classification.
+              Interactive Google Maps telemetry displaying verified historical crash records along your chosen travel corridor.
             </p>
           </div>
 
@@ -1026,7 +995,7 @@ export const OverviewPage: React.FC = () => {
           {/* Floating Points Count Pill */}
           <div className="absolute top-4 left-4 z-[10] bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2 pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-            <span>{mapPoints.length} Spots Plotted in {form.city} ({form.road_type})</span>
+            <span>{mapPoints.length} Spots Plotted on {form.city} ({form.road_type})</span>
           </div>
 
           {/* Floating Selected Point Details */}

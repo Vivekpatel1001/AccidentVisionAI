@@ -160,8 +160,10 @@ class PredictionInput(BaseModel):
     distance_to_road_m: Optional[float] = Field(10.0, description="Distance to matched centerline")
     road_match_quality: Optional[str] = Field("High", description="Match quality tier")
     vehicle_type: Optional[str] = Field("Car / Passenger Vehicle", description="Two-Wheeler, Car, Commercial Truck, Auto")
-    is_divided_carriageway: Optional[Any] = Field(True, description="Physical median barrier present")
-    cruising_speed_kmh: Optional[float] = Field(60.0, description="Operating cruising speed in km/h")
+    is_divided_carriageway: Optional[Any] = Field(None, description="Physical median barrier present")
+    cruising_speed_kmh: Optional[float] = Field(None, description="Operating cruising speed in km/h")
+    source: Optional[str] = Field(None, description="Trip origin city or corridor start")
+    destination: Optional[str] = Field(None, description="Trip destination city or corridor end")
 
 
 @app.get("/api/health")
@@ -867,9 +869,15 @@ def predict_severity(payload: PredictionInput):
 
     input_dict = payload.dict()
 
-    # Normalize city
-    norm_city = normalize_city(input_dict.get("city", "Mumbai"))
-    input_dict["city"] = norm_city or "Mumbai"
+    # Normalize city from city or source
+    source_city = input_dict.get("source")
+    if source_city:
+        norm_source = normalize_city(source_city)
+        if norm_source:
+            input_dict["city"] = norm_source
+    else:
+        norm_city = normalize_city(input_dict.get("city", "Mumbai"))
+        input_dict["city"] = norm_city or "Mumbai"
 
     # Always ensure coordinates match the specified city centroid
     c_lat, c_lon = CITY_CENTROIDS.get(input_dict["city"], (19.0760, 72.8777))
@@ -932,9 +940,28 @@ def predict_severity(payload: PredictionInput):
     # 1. WorldPop demographic lookup
     pop_density = get_worldpop_density(input_dict["latitude"], input_dict["longitude"])
 
-    # 2. Design speed & physical kinetic energy index
-    c_speed = float(input_dict.get("cruising_speed_kmh") or 60.0)
-    is_divided = 1 if bool(input_dict.get("is_divided_carriageway", True)) else 0
+    # 2. Design speed & physical kinetic energy index (IRC:73 standard defaults based on road type)
+    user_speed = input_dict.get("cruising_speed_kmh")
+    user_divided = input_dict.get("is_divided_carriageway")
+
+    if user_speed is not None and float(user_speed) > 0:
+        c_speed = float(user_speed)
+    else:
+        if input_dict["road_type"] == "highway":
+            c_speed = 80.0
+        elif input_dict["road_type"] == "rural":
+            c_speed = 60.0
+        elif input_dict["road_type"] == "local":
+            c_speed = 35.0
+        else:
+            c_speed = 50.0
+
+    if user_divided is not None:
+        is_divided = 1 if bool(user_divided) else 0
+    else:
+        # Default: Highways and major urban arterials are divided; rural and local are undivided
+        is_divided = 1 if input_dict["road_type"] in ["highway", "urban"] else 0
+
     k_energy = (c_speed / 10.0) ** 2
 
     # 3. High-Accuracy Corridor Hazard Model (88.64% holdout accuracy)
