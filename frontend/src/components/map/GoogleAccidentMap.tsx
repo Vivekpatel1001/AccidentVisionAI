@@ -329,8 +329,22 @@ export const GoogleAccidentMap: React.FC<GoogleAccidentMapProps> = ({
       return true;
     });
 
-    // Display up to 4,000 points with smooth 60fps rendering
-    const displayPoints = filteredPoints.length > 4000 ? filteredPoints.slice(0, 4000) : filteredPoints;
+    // Prioritize critical fatal & severe crash points, capping at 400 to ensure silky 60fps rendering and zero browser freezing
+    const fatalPts = filteredPoints.filter((p) => String(p.accident_severity).toLowerCase() === 'fatal');
+    const severePts = filteredPoints.filter((p) => {
+      const s = String(p.accident_severity).toLowerCase();
+      return s === 'severe' || s === 'major';
+    });
+    const minorPts = filteredPoints.filter((p) => {
+      const s = String(p.accident_severity).toLowerCase();
+      return s !== 'fatal' && s !== 'severe' && s !== 'major';
+    });
+
+    const displayPoints = [
+      ...fatalPts.slice(0, 180),
+      ...severePts.slice(0, 140),
+      ...minorPts.slice(0, 80),
+    ];
 
     displayPoints.forEach((pt) => {
       if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') return;

@@ -149,18 +149,30 @@ export const OverviewPage: React.FC = () => {
   const { data: overviewData } = useQuery({
     queryKey: ['overview', form.city],
     queryFn: () => getOverview(form.city),
+    enabled: Boolean(form.city && form.city.trim().length >= 3),
+    staleTime: 60000,
   });
 
   // Query real geo accident points along the travel corridor matching Source & Destination
   const { data: corridorAccidents, isLoading: isMapLoading } = useQuery({
     queryKey: ['corridor-accidents-map', form.source, form.destination, form.city],
     queryFn: () => getGeoAccidents(undefined, undefined, 2500, form.source, form.destination),
+    enabled: Boolean(
+      form.source && form.source.trim().length >= 3 &&
+      form.destination && form.destination.trim().length >= 3
+    ),
+    staleTime: 60000,
   });
 
   // Query dense road safety hotspots (DBSCAN clusters & MoRTH verified blackspot zones) for corridor
   const { data: corridorHotspotsData, isLoading: isHotspotsLoading } = useQuery({
     queryKey: ['corridor-hotspots-map', form.source, form.destination, form.city],
     queryFn: () => getHotspots(form.city || form.source, 6, 0.8, form.source, form.destination),
+    enabled: Boolean(
+      form.source && form.source.trim().length >= 3 &&
+      form.destination && form.destination.trim().length >= 3
+    ),
+    staleTime: 60000,
   });
   const corridorHotspots: HotspotItem[] = corridorHotspotsData?.hotspots || [];
 
@@ -172,11 +184,17 @@ export const OverviewPage: React.FC = () => {
     },
   });
 
-  // Auto-recalculate AI Safety Telemetry whenever any trip parameter changes (debounced 300ms)
+  // Auto-recalculate AI Safety Telemetry whenever any trip parameter changes (debounced 400ms)
   useEffect(() => {
+    if (
+      !form.source || form.source.trim().length < 3 ||
+      !form.destination || form.destination.trim().length < 3
+    ) {
+      return;
+    }
     const timer = setTimeout(() => {
       mutation.mutate(form);
-    }, 300);
+    }, 400);
     return () => clearTimeout(timer);
   }, [
     form.source,

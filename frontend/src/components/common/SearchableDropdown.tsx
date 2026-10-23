@@ -24,6 +24,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   const [query, setQuery] = useState(value || '');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<any>(null);
 
   // Sync internal input query with incoming value
   useEffect(() => {
@@ -38,17 +39,28 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
-    onChange(val);
     if (!isOpen) setIsOpen(true);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    // Debounce typed text by 400ms to avoid freezing browser with rapid API queries
+    debounceTimerRef.current = setTimeout(() => {
+      onChange(val);
+    }, 400);
   };
 
   const handleSelectOption = (opt: string) => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     setQuery(opt);
     onChange(opt);
     setIsOpen(false);
@@ -56,6 +68,7 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     setQuery('');
     onChange('');
     if (inputRef.current) inputRef.current.focus();

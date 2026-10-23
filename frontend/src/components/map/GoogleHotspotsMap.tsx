@@ -158,7 +158,22 @@ export const GoogleHotspotsMap: React.FC<GoogleHotspotsMapProps> = ({
 
     if (!showIncidents || !points || points.length === 0) return;
 
-    const displayPoints = points.length > 3000 ? points.slice(0, 3000) : points;
+    // Prioritize critical fatal & severe crash points, capping at 350 for silky 60fps rendering
+    const fatalPts = points.filter((p) => String(p.accident_severity).toLowerCase() === 'fatal');
+    const severePts = points.filter((p) => {
+      const s = String(p.accident_severity).toLowerCase();
+      return s === 'severe' || s === 'major';
+    });
+    const minorPts = points.filter((p) => {
+      const s = String(p.accident_severity).toLowerCase();
+      return s !== 'fatal' && s !== 'severe' && s !== 'major';
+    });
+
+    const displayPoints = [
+      ...fatalPts.slice(0, 150),
+      ...severePts.slice(0, 120),
+      ...minorPts.slice(0, 80),
+    ];
 
     displayPoints.forEach((pt) => {
       if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') return;

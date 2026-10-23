@@ -105,12 +105,14 @@ export const AccidentMapPage: React.FC = () => {
   const { data: rawPoints, isLoading: isPointsLoading } = useQuery({
     queryKey: ['full-map-accidents', queryCity, severityFilter, querySource, queryDestination],
     queryFn: () => getGeoAccidents(queryCity, severityFilter, 4000, querySource, queryDestination),
+    staleTime: 60000,
   });
 
   // 2. Fetch High-Density Collision Hotspots (DBSCAN + MoRTH Blackspots)
   const { data: rawHotspotsData, isLoading: isHotspotsLoading } = useQuery({
     queryKey: ['full-map-hotspots', queryCity, querySource, queryDestination],
     queryFn: () => getHotspots(queryCity, 6, 0.8, querySource, queryDestination),
+    staleTime: 60000,
   });
 
   const pointsList: AccidentGeoPoint[] = Array.isArray(rawPoints) ? rawPoints : [];
