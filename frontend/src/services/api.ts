@@ -58,11 +58,13 @@ export const getGeoAccidents = async (
 
 export const getHotspots = async (
   city?: string,
-  min_points: number = 12,
-  eps_km: number = 0.6
+  min_points: number = 6,
+  eps_km: number = 0.8,
+  source?: string,
+  destination?: string
 ): Promise<HotspotsResponse> => {
   const { data } = await api.get('/geo/hotspots', {
-    params: { city, min_points, eps_km },
+    params: { city, min_points, eps_km, source, destination },
   });
   return data;
 };

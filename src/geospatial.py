@@ -66,10 +66,13 @@ def cluster_hotspots_dbscan(
     Tuple[pd.DataFrame, pd.DataFrame]
         (Clustered accident records with cluster_id, Summary dataframe of identified hotspots)
     """
-    df_city = df[df["city"] == city].copy() if city else df.copy()
+    if city:
+        df_city = df[df["city"].astype(str).str.lower() == str(city).lower()].copy()
+    else:
+        df_city = df.copy()
     df_city = df_city.dropna(subset=[lat_col, lon_col])
 
-    if len(df_city) < min_samples:
+    if len(df_city) < 3:
         df_city["cluster_id"] = -1
         return df_city, pd.DataFrame()
 
@@ -82,6 +85,13 @@ def cluster_hotspots_dbscan(
 
     db = DBSCAN(eps=eps_radians, min_samples=min_samples, metric="haversine", n_jobs=-1)
     df_city["cluster_id"] = db.fit_predict(coords_rad)
+
+    # If initial min_samples produced zero clusters (e.g. widely dispersed metro like Delhi), retry with adaptive min_samples
+    if (df_city["cluster_id"] != -1).sum() == 0 and min_samples > 3:
+        adaptive_min = 3
+        adaptive_eps_rad = max(eps_radians, 850.0 / earth_radius_m)
+        db = DBSCAN(eps=adaptive_eps_rad, min_samples=adaptive_min, metric="haversine", n_jobs=-1)
+        df_city["cluster_id"] = db.fit_predict(coords_rad)
 
     # Summarize identified dense clusters (excluding noise cluster -1)
     dense_clusters = df_city[df_city["cluster_id"] != -1]

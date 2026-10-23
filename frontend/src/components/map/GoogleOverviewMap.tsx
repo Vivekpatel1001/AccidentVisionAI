@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { AccidentGeoPoint } from '../../types/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { AccidentGeoPoint, HotspotItem } from '../../types/api';
 import { useGoogleMaps } from '../../utils/googleMapsLoader';
 import { CITY_COORDINATES, DEFAULT_MAP_CENTER, CLEAN_LIGHT_MAP_STYLES } from '../../config/maps';
 import { LoadingSpinner } from '../common/LoadingSpinner';
@@ -13,32 +13,45 @@ export interface RouteSummary {
 
 interface GoogleOverviewMapProps {
   points: AccidentGeoPoint[];
+  hotspots?: HotspotItem[];
   city: string;
   source?: string;
   destination?: string;
   roadType?: string;
   isLoading?: boolean;
+  selectedHotspot?: HotspotItem | null;
+  selectedPoint?: AccidentGeoPoint | null;
+  onSelectHotspot?: (h: HotspotItem) => void;
   onSelectPoint?: (pt: AccidentGeoPoint) => void;
   onRouteCalculated?: (summary: RouteSummary) => void;
 }
 
 export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
   points,
+  hotspots = [],
   city,
   source,
   destination,
   roadType,
   isLoading = false,
+  selectedHotspot,
+  selectedPoint,
+  onSelectHotspot,
   onSelectPoint,
   onRouteCalculated,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  const hotspotMarkersRef = useRef<google.maps.Marker[]>([]);
+  const hotspotCirclesRef = useRef<google.maps.Circle[]>([]);
   const endpointMarkersRef = useRef<google.maps.Marker[]>([]);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const fallbackPolylineRef = useRef<google.maps.Polyline | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+
+  const [showHotspots, setShowHotspots] = useState(true);
+  const [showIncidents, setShowIncidents] = useState(true);
 
   const { isLoaded, loadError } = useGoogleMaps();
 
@@ -328,7 +341,226 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     }
   }, [city, destination]);
 
-  // Plot Verified Historical Accident Records & Hotspots
+  // Plot High-Density Collision Hotspots and Blackspot Risk Zones
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isLoaded) return;
+    const map = mapInstanceRef.current;
+
+    // Clear old hotspot markers & buffer circles
+    hotspotCirclesRef.current.forEach((c) => c.setMap(null));
+    hotspotMarkersRef.current.forEach((m) => m.setMap(null));
+    hotspotCirclesRef.current = [];
+    hotspotMarkersRef.current = [];
+
+    if (!showHotspots || !hotspots || hotspots.length === 0) return;
+
+    hotspots.forEach((h) => {
+      const lat = typeof h.centroid_lat === 'number' ? h.centroid_lat : (typeof h.center_latitude === 'number' ? h.center_latitude : null);
+      const lon = typeof h.centroid_lon === 'number' ? h.centroid_lon : (typeof h.center_longitude === 'number' ? h.center_longitude : null);
+      if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
+
+      const pos = { lat, lng: lon };
+      const isSelected = selectedHotspot?.cluster_id === h.cluster_id;
+      const hasFatal = (h.fatal_count || 0) > 0;
+      const radiusMeters = h.radius_m || 850;
+
+      // 1. Risk Buffer Circle
+      const circle = new google.maps.Circle({
+        map,
+        center: pos,
+        radius: radiusMeters,
+        strokeColor: isSelected ? '#2563EB' : (hasFatal ? '#DC2626' : '#D97706'),
+        strokeOpacity: isSelected ? 0.95 : 0.7,
+        strokeWeight: isSelected ? 2.5 : 1.5,
+        fillColor: hasFatal ? '#EF4444' : '#F59E0B',
+        fillOpacity: isSelected ? 0.35 : 0.18,
+        clickable: false,
+      });
+      hotspotCirclesRef.current.push(circle);
+
+      // 2. High-Visibility Flame/Cluster Marker
+      const count = h.size || h.cluster_size || 15;
+      const markerSize = Math.min(22, Math.max(12, Math.sqrt(count) * 2.5));
+      const marker = new google.maps.Marker({
+        map,
+        position: pos,
+        title: `${h.name || ('Cluster #' + h.cluster_id)} • ${h.city}`,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: markerSize,
+          fillColor: hasFatal ? '#DC2626' : '#D97706',
+          fillOpacity: 0.95,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 2.2,
+        },
+        label: {
+          text: count > 999 ? `${(count / 1000).toFixed(1)}k` : String(count),
+          color: '#FFFFFF',
+          fontSize: '10px',
+          fontWeight: 'bold',
+        },
+        zIndex: 500,
+      });
+
+      marker.addListener('click', () => {
+        if (onSelectHotspot) onSelectHotspot(h);
+
+        if (infoWindowRef.current) {
+          const fatalPct = h.fatal_percentage || (h.fatal_ratio ? (h.fatal_ratio * 100).toFixed(1) : '35.0');
+          const isHigh = parseFloat(String(fatalPct)) > 30;
+
+          const content = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 6px 8px; min-width: 250px; max-width: 310px; color: #0F172A; line-height: 1.45;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 8px;">
+                <div>
+                  <span style="font-weight: 800; font-size: 13px; color: #DC2626;">🔥 ${h.name || ('Cluster #' + h.cluster_id)}</span>
+                  <div style="font-size: 10px; color: #64748B;">${h.city} • High-Density Blackspot</div>
+                </div>
+                <span style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 9999px; ${isHigh ? 'background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;' : 'background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A;'}">
+                  ${fatalPct}% Fatal Rate
+                </span>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; background: #F8FAFC; padding: 6px 8px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 8px;">
+                <div><span style="color: #64748B;">Crashes:</span> <strong style="color: #0F172A;">${count}</strong></div>
+                <div><span style="color: #64748B;">Fatalities:</span> <strong style="color: #DC2626;">${h.fatal_count}</strong></div>
+                <div><span style="color: #64748B;">Density:</span> <strong style="color: #0F172A;">${h.density_per_sqkm || 150} /km²</strong></div>
+                <div><span style="color: #64748B;">Roadway:</span> <strong style="color: #0F172A;">${h.dominant_road || 'Highway'}</strong></div>
+              </div>
+              ${h.top_violation ? `
+                <div style="font-size: 11px; color: #9A3412; background: #FFF7ED; padding: 4px 8px; border-radius: 6px; border: 1px solid #FFEDD5; margin-bottom: 6px;">
+                  <strong>⚠️ Primary Violation:</strong> ${h.top_violation}
+                </div>
+              ` : ''}
+              ${h.top_fatal_mode ? `
+                <div style="font-size: 11px; color: #1E40AF; background: #EFF6FF; padding: 4px 8px; border-radius: 6px; border: 1px solid #DBEAFE; margin-bottom: 8px;">
+                  <strong>🏍️ Vulnerable User:</strong> ${h.top_fatal_mode}
+                </div>
+              ` : ''}
+              <div style="text-align: center; border-top: 1px dashed #E2E8F0; padding-top: 6px;">
+                <span style="color: #2563EB; font-weight: 700; font-size: 11px; cursor: pointer;">
+                  👉 MoRTH Verified Collision Corridor Segment
+                </span>
+              </div>
+            </div>
+          `;
+          infoWindowRef.current.setContent(content);
+          infoWindowRef.current.open(map, marker);
+        }
+      });
+
+      hotspotMarkersRef.current.push(marker);
+    });
+  }, [hotspots, showHotspots, selectedHotspot, isLoaded, onSelectHotspot]);
+
+  // Synchronize Map view and InfoWindow when selectedHotspot changes from external selection
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isLoaded || !selectedHotspot) return;
+    const lat = typeof selectedHotspot.centroid_lat === 'number' ? selectedHotspot.centroid_lat : (typeof selectedHotspot.center_latitude === 'number' ? selectedHotspot.center_latitude : null);
+    const lon = typeof selectedHotspot.centroid_lon === 'number' ? selectedHotspot.centroid_lon : (typeof selectedHotspot.center_longitude === 'number' ? selectedHotspot.center_longitude : null);
+    if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
+
+    const map = mapInstanceRef.current;
+    map.panTo({ lat, lng: lon });
+    if ((map.getZoom() || 11) < 13) {
+      map.setZoom(13);
+    }
+
+    if (infoWindowRef.current) {
+      const count = selectedHotspot.size || selectedHotspot.cluster_size || 15;
+      const fatalPct = selectedHotspot.fatal_percentage || (selectedHotspot.fatal_ratio ? (selectedHotspot.fatal_ratio * 100).toFixed(1) : '35.0');
+      const isHigh = parseFloat(String(fatalPct)) > 30;
+
+      const content = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 6px 8px; min-width: 250px; max-width: 320px; color: #0F172A; line-height: 1.45;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 8px;">
+            <div>
+              <span style="font-weight: 800; font-size: 13px; color: #DC2626;">🔥 ${selectedHotspot.name || ('Cluster #' + selectedHotspot.cluster_id)}</span>
+              <div style="font-size: 10px; color: #64748B;">${selectedHotspot.city} • High-Density Blackspot</div>
+            </div>
+            <span style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 9999px; ${isHigh ? 'background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;' : 'background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A;'}">
+              ${fatalPct}% Fatal Rate
+            </span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; background: #F8FAFC; padding: 6px 8px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 8px;">
+            <div><span style="color: #64748B;">Crashes:</span> <strong style="color: #0F172A;">${count}</strong></div>
+            <div><span style="color: #64748B;">Fatalities:</span> <strong style="color: #DC2626;">${selectedHotspot.fatal_count}</strong></div>
+            <div><span style="color: #64748B;">Density:</span> <strong style="color: #0F172A;">${selectedHotspot.density_per_sqkm || 150} /km²</strong></div>
+            <div><span style="color: #64748B;">Roadway:</span> <strong style="color: #0F172A;">${selectedHotspot.dominant_road || selectedHotspot.top_road_type || 'Highway'}</strong></div>
+          </div>
+          ${selectedHotspot.top_violation ? `
+            <div style="font-size: 11px; color: #9A3412; background: #FFF7ED; padding: 4px 8px; border-radius: 6px; border: 1px solid #FFEDD5; margin-bottom: 6px;">
+              <strong>⚠️ Primary Violation:</strong> ${selectedHotspot.top_violation}
+            </div>
+          ` : ''}
+          ${selectedHotspot.top_fatal_mode ? `
+            <div style="font-size: 11px; color: #1E40AF; background: #EFF6FF; padding: 4px 8px; border-radius: 6px; border: 1px solid #DBEAFE; margin-bottom: 8px;">
+              <strong>🏍️ Vulnerable User:</strong> ${selectedHotspot.top_fatal_mode}
+            </div>
+          ` : ''}
+          <div style="text-align: center; border-top: 1px dashed #E2E8F0; padding-top: 6px;">
+            <span style="color: #2563EB; font-weight: 700; font-size: 11px;">
+              📍 Active Blackspot Dossier Opened Below
+            </span>
+          </div>
+        </div>
+      `;
+      infoWindowRef.current.setContent(content);
+      infoWindowRef.current.setPosition({ lat, lng: lon });
+      infoWindowRef.current.open(map);
+    }
+  }, [selectedHotspot, isLoaded]);
+
+  // Synchronize Map view and InfoWindow when selectedPoint changes from external selection
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isLoaded || !selectedPoint) return;
+    if (typeof selectedPoint.latitude !== 'number' || typeof selectedPoint.longitude !== 'number') return;
+    if (isNaN(selectedPoint.latitude) || isNaN(selectedPoint.longitude)) return;
+
+    const map = mapInstanceRef.current;
+    map.panTo({ lat: selectedPoint.latitude, lng: selectedPoint.longitude });
+    if ((map.getZoom() || 11) < 14) {
+      map.setZoom(14);
+    }
+
+    if (infoWindowRef.current) {
+      const isFatal = String(selectedPoint.accident_severity).toLowerCase() === 'fatal';
+      const isSevere = String(selectedPoint.accident_severity).toLowerCase() === 'severe' || String(selectedPoint.accident_severity).toLowerCase() === 'major';
+
+      const content = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 6px 8px; min-width: 220px; max-width: 280px; color: #0F172A; line-height: 1.4;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; margin-bottom: 6px;">
+            <span style="font-weight: 800; font-size: 12px; color: ${isFatal ? '#DC2626' : isSevere ? '#D97706' : '#059669'};">
+              ${isFatal ? '🔴 Fatal Collision' : isSevere ? '🟡 Severe Collision' : '🟢 Minor Collision'}
+            </span>
+            <span style="font-size: 10px; font-weight: 700; color: #64748B;">
+              Case #${selectedPoint.accident_id}
+            </span>
+          </div>
+          <div style="font-size: 11px; margin-bottom: 4px;">
+            <strong>${selectedPoint.city}</strong> • ${selectedPoint.road_type}
+          </div>
+          <div style="font-size: 11px; color: #475569; margin-bottom: 2px;">
+            Time: <strong>${selectedPoint.hour}:00 HRS</strong> • ${selectedPoint.weather || 'Clear'}
+          </div>
+          ${selectedPoint.cause ? `
+            <div style="font-size: 10px; color: #64748B; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 4px 6px; border-radius: 6px; margin-top: 6px;">
+              <strong>Cause:</strong> ${selectedPoint.cause}
+            </div>
+          ` : ''}
+          <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #E2E8F0; text-align: center;">
+            <span style="color: #2563EB; font-weight: 700; font-size: 11px;">
+              📍 Active Case Dossier Opened Below
+            </span>
+          </div>
+        </div>
+      `;
+      infoWindowRef.current.setContent(content);
+      infoWindowRef.current.setPosition({ lat: selectedPoint.latitude, lng: selectedPoint.longitude });
+      infoWindowRef.current.open(map);
+    }
+  }, [selectedPoint, isLoaded]);
+
+  // Plot Verified Historical Accident Records
   useEffect(() => {
     if (!mapInstanceRef.current || !isLoaded) return;
     const map = mapInstanceRef.current;
@@ -336,6 +568,8 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     // Clear old markers
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
+
+    if (!showIncidents) return;
 
     // Filter points matching roadType if given
     const filteredPoints = points.filter((pt) => {
@@ -433,7 +667,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
 
       markersRef.current.push(marker);
     });
-  }, [points, roadType, isLoaded, onSelectPoint]);
+  }, [points, roadType, isLoaded, showIncidents, onSelectPoint]);
 
   if (loadError) {
     return (
@@ -448,6 +682,37 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
 
   return (
     <div className="relative h-full w-full">
+      {/* Interactive Floating Map Layer Controls in Top Right */}
+      <div className="absolute top-3 right-14 z-[10] flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-slate-200 shadow-md text-xs font-semibold">
+        <button
+          type="button"
+          onClick={() => setShowHotspots(!showHotspots)}
+          className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+            showHotspots
+              ? 'bg-rose-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+          }`}
+          title="Toggle High-Risk Blackspots Layer"
+        >
+          <span>🔥</span>
+          <span>Hotspots ({hotspots.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowIncidents(!showIncidents)}
+          className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+            showIncidents
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+          }`}
+          title="Toggle Incident Microdata Records Layer"
+        >
+          <span>⚠️</span>
+          <span>Incidents ({points.length})</span>
+        </button>
+      </div>
+
       {(!isLoaded || isLoading) && (
         <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex items-center justify-center">
           <LoadingSpinner

@@ -125,16 +125,28 @@ export interface AccidentGeoPoint {
 
 export interface HotspotItem {
   cluster_id: number;
+  name?: string;
   city: string;
   size: number;
+  cluster_size?: number;
   centroid_lat: number;
+  center_latitude?: number;
   centroid_lon: number;
+  center_longitude?: number;
   dominant_road: string;
+  top_road_type?: string;
   dominant_weather: string;
+  top_weather?: string;
   fatal_count: number;
+  major_count?: number;
+  minor_count?: number;
   fatal_ratio: number;
+  fatal_percentage?: number;
   radius_m: number;
   density_per_sqkm: number;
+  top_violation?: string;
+  top_fatal_mode?: string;
+  is_morth_verified?: boolean;
 }
 
 export interface HotspotsResponse {
