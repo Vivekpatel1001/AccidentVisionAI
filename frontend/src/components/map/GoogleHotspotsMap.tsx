@@ -102,7 +102,7 @@ export const GoogleHotspotsMap: React.FC<GoogleHotspotsMapProps> = ({
     mapInstanceRef.current.setZoom(13);
   }, [flyToCenter]);
 
-  // Plot Hotspot Circles and Centroid Markers
+  // Plot Selected Hotspot Focus Zone (Subtle focus ring only when a cluster is clicked)
   useEffect(() => {
     if (!mapInstanceRef.current || !isLoaded) return;
     const map = mapInstanceRef.current;
@@ -113,107 +113,39 @@ export const GoogleHotspotsMap: React.FC<GoogleHotspotsMapProps> = ({
     circlesRef.current = [];
     hotspotMarkersRef.current = [];
 
-    if (!showHotspots) return;
+    if (!selectedHotspot) return;
 
-    const bounds = new google.maps.LatLngBounds();
-    let hasPoints = false;
+    const lat = typeof selectedHotspot.centroid_lat === 'number'
+      ? selectedHotspot.centroid_lat
+      : (typeof selectedHotspot.center_latitude === 'number' ? selectedHotspot.center_latitude : null);
+    const lon = typeof selectedHotspot.centroid_lon === 'number'
+      ? selectedHotspot.centroid_lon
+      : (typeof selectedHotspot.center_longitude === 'number' ? selectedHotspot.center_longitude : null);
 
-    hotspots.forEach((h) => {
-      if (typeof h.centroid_lat !== 'number' || typeof h.centroid_lon !== 'number') return;
-      if (isNaN(h.centroid_lat) || isNaN(h.centroid_lon)) return;
+    if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
 
-      const position = { lat: h.centroid_lat, lng: h.centroid_lon };
-      bounds.extend(position);
-      hasPoints = true;
+    const position = { lat, lng: lon };
+    const radiusMeters = selectedHotspot.radius_m || epsKm * 1000;
 
-      const isSelected = selectedHotspot?.cluster_id === h.cluster_id;
-      const hasFatal = (h.fatal_count || 0) > 0;
-      const radiusMeters = h.radius_m || epsKm * 1000;
-
-      // 1. Cluster Buffer Circle
-      const circle = new google.maps.Circle({
-        map,
-        center: position,
-        radius: radiusMeters,
-        strokeColor: isSelected ? '#2563EB' : hasFatal ? '#DC2626' : '#D97706',
-        strokeOpacity: isSelected ? 0.95 : 0.7,
-        strokeWeight: isSelected ? 2.5 : 1.5,
-        fillColor: hasFatal ? '#EF4444' : '#F59E0B',
-        fillOpacity: isSelected ? 0.35 : 0.18,
-        clickable: false,
-      });
-      circlesRef.current.push(circle);
-
-      // 2. Centroid Marker with collision scale
-      const markerSize = Math.min(22, Math.max(10, Math.sqrt(h.size) * 2.8));
-      const marker = new google.maps.Marker({
-        map,
-        position,
-        title: `${h.name || ('Cluster #' + h.cluster_id)} - ${h.city}`,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: markerSize,
-          fillColor: hasFatal ? '#DC2626' : '#D97706',
-          fillOpacity: 0.95,
-          strokeColor: '#FFFFFF',
-          strokeWeight: 2,
-        },
-        label: {
-          text: String(h.size),
-          color: '#FFFFFF',
-          fontSize: '11px',
-          fontWeight: 'bold',
-        },
-        zIndex: 500,
-      });
-
-      marker.addListener('click', () => {
-        onSelectHotspot(h);
-        if (infoWindowRef.current) {
-          const fatalPct = (h.fatal_ratio * 100).toFixed(1);
-          const isHighFatal = parseFloat(fatalPct) > 25;
-          const infoContent = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 6px 8px; min-width: 240px; max-width: 300px; color: #0F172A; line-height: 1.45;">
-              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 8px;">
-                <div>
-                  <span style="font-weight: 800; font-size: 13px; color: #DC2626;">🔥 ${h.name || ('Cluster #' + h.cluster_id)}</span>
-                  <div style="font-size: 10px; color: #64748B;">${h.city} • High-Density Blackspot</div>
-                </div>
-                <span style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 9999px; ${isHighFatal ? 'background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;' : 'background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A;'}">
-                  ${fatalPct}% Fatal
-                </span>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; background: #F8FAFC; padding: 6px 8px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 8px;">
-                <div><span style="color: #64748B;">Crashes:</span> <strong style="color: #0F172A;">${h.size}</strong></div>
-                <div><span style="color: #64748B;">Fatalities:</span> <strong style="color: #DC2626;">${h.fatal_count}</strong></div>
-                <div><span style="color: #64748B;">Density:</span> <strong style="color: #0F172A;">${h.density_per_sqkm} /km²</strong></div>
-                <div><span style="color: #64748B;">Roadway:</span> <strong style="color: #0F172A;">${h.dominant_road || 'Highway'}</strong></div>
-              </div>
-              ${h.top_violation ? `
-                <div style="font-size: 11px; color: #9A3412; background: #FFF7ED; padding: 4px 8px; border-radius: 6px; border: 1px solid #FFEDD5; margin-bottom: 6px;">
-                  <strong>⚠️ Primary Violation:</strong> ${h.top_violation}
-                </div>
-              ` : ''}
-              ${h.top_fatal_mode ? `
-                <div style="font-size: 11px; color: #1E40AF; background: #EFF6FF; padding: 4px 8px; border-radius: 6px; border: 1px solid #DBEAFE; margin-bottom: 8px;">
-                  <strong>🏍️ Vulnerable User:</strong> ${h.top_fatal_mode}
-                </div>
-              ` : ''}
-            </div>
-          `;
-          infoWindowRef.current.setContent(infoContent);
-          infoWindowRef.current.open(map, marker);
-        }
-      });
-
-      hotspotMarkersRef.current.push(marker);
+    // Elegant, ultra-subtle focal zone boundary (NO big numbered disks)
+    const circle = new google.maps.Circle({
+      map,
+      center: position,
+      radius: radiusMeters,
+      strokeColor: '#2563EB',
+      strokeOpacity: 0.85,
+      strokeWeight: 2,
+      fillColor: '#3B82F6',
+      fillOpacity: 0.08,
+      clickable: false,
     });
+    circlesRef.current.push(circle);
 
-    // Auto fit if not single city focus
-    if (!selectedCity && hasPoints && hotspots.length > 1) {
-      map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+    map.panTo(position);
+    if ((map.getZoom() || 11) < 13) {
+      map.setZoom(13);
     }
-  }, [hotspots, selectedHotspot, isLoaded, epsKm, onSelectHotspot, selectedCity, showHotspots]);
+  }, [selectedHotspot, isLoaded, epsKm]);
 
   // Plot Individual Verified Collision Dots
   useEffect(() => {

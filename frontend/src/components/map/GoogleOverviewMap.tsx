@@ -342,7 +342,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     }
   }, [city, destination]);
 
-  // Plot High-Density Collision Hotspots and Blackspot Risk Zones
+  // Plot Selected Hotspot Focus Boundary (Subtle highlight only when user selects a hotspot from the dossier)
   useEffect(() => {
     if (!mapInstanceRef.current || !isLoaded) return;
     const map = mapInstanceRef.current;
@@ -353,105 +353,34 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     hotspotCirclesRef.current = [];
     hotspotMarkersRef.current = [];
 
-    if (!showHotspots || !hotspots || hotspots.length === 0) return;
+    if (!selectedHotspot) return;
 
-    hotspots.forEach((h) => {
-      const lat = typeof h.centroid_lat === 'number' ? h.centroid_lat : (typeof h.center_latitude === 'number' ? h.center_latitude : null);
-      const lon = typeof h.centroid_lon === 'number' ? h.centroid_lon : (typeof h.center_longitude === 'number' ? h.center_longitude : null);
-      if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
+    const lat = typeof selectedHotspot.centroid_lat === 'number'
+      ? selectedHotspot.centroid_lat
+      : (typeof selectedHotspot.center_latitude === 'number' ? selectedHotspot.center_latitude : null);
+    const lon = typeof selectedHotspot.centroid_lon === 'number'
+      ? selectedHotspot.centroid_lon
+      : (typeof selectedHotspot.center_longitude === 'number' ? selectedHotspot.center_longitude : null);
 
-      const pos = { lat, lng: lon };
-      const isSelected = selectedHotspot?.cluster_id === h.cluster_id;
-      const hasFatal = (h.fatal_count || 0) > 0;
-      const radiusMeters = h.radius_m || 850;
+    if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
 
-      // 1. Risk Buffer Circle
-      const circle = new google.maps.Circle({
-        map,
-        center: pos,
-        radius: radiusMeters,
-        strokeColor: isSelected ? '#2563EB' : (hasFatal ? '#DC2626' : '#D97706'),
-        strokeOpacity: isSelected ? 0.95 : 0.7,
-        strokeWeight: isSelected ? 2.5 : 1.5,
-        fillColor: hasFatal ? '#EF4444' : '#F59E0B',
-        fillOpacity: isSelected ? 0.35 : 0.18,
-        clickable: false,
-      });
-      hotspotCirclesRef.current.push(circle);
+    const pos = { lat, lng: lon };
+    const radiusMeters = selectedHotspot.radius_m || 800;
 
-      // 2. High-Visibility Flame/Cluster Marker
-      const count = h.size || h.cluster_size || 15;
-      const markerSize = Math.min(22, Math.max(12, Math.sqrt(count) * 2.5));
-      const marker = new google.maps.Marker({
-        map,
-        position: pos,
-        title: `${h.name || ('Cluster #' + h.cluster_id)} • ${h.city}`,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: markerSize,
-          fillColor: hasFatal ? '#DC2626' : '#D97706',
-          fillOpacity: 0.95,
-          strokeColor: '#FFFFFF',
-          strokeWeight: 2.2,
-        },
-        label: {
-          text: count > 999 ? `${(count / 1000).toFixed(1)}k` : String(count),
-          color: '#FFFFFF',
-          fontSize: '10px',
-          fontWeight: 'bold',
-        },
-        zIndex: 500,
-      });
-
-      marker.addListener('click', () => {
-        if (onSelectHotspot) onSelectHotspot(h);
-
-        if (infoWindowRef.current) {
-          const fatalPct = h.fatal_percentage || (h.fatal_ratio ? (h.fatal_ratio * 100).toFixed(1) : '35.0');
-          const isHigh = parseFloat(String(fatalPct)) > 30;
-
-          const content = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 6px 8px; min-width: 250px; max-width: 310px; color: #0F172A; line-height: 1.45;">
-              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 8px;">
-                <div>
-                  <span style="font-weight: 800; font-size: 13px; color: #DC2626;">🔥 ${h.name || ('Cluster #' + h.cluster_id)}</span>
-                  <div style="font-size: 10px; color: #64748B;">${h.city} • High-Density Blackspot</div>
-                </div>
-                <span style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 9999px; ${isHigh ? 'background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;' : 'background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A;'}">
-                  ${fatalPct}% Fatal Rate
-                </span>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; background: #F8FAFC; padding: 6px 8px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 8px;">
-                <div><span style="color: #64748B;">Crashes:</span> <strong style="color: #0F172A;">${count}</strong></div>
-                <div><span style="color: #64748B;">Fatalities:</span> <strong style="color: #DC2626;">${h.fatal_count}</strong></div>
-                <div><span style="color: #64748B;">Density:</span> <strong style="color: #0F172A;">${h.density_per_sqkm || 150} /km²</strong></div>
-                <div><span style="color: #64748B;">Roadway:</span> <strong style="color: #0F172A;">${h.dominant_road || 'Highway'}</strong></div>
-              </div>
-              ${h.top_violation ? `
-                <div style="font-size: 11px; color: #9A3412; background: #FFF7ED; padding: 4px 8px; border-radius: 6px; border: 1px solid #FFEDD5; margin-bottom: 6px;">
-                  <strong>⚠️ Primary Violation:</strong> ${h.top_violation}
-                </div>
-              ` : ''}
-              ${h.top_fatal_mode ? `
-                <div style="font-size: 11px; color: #1E40AF; background: #EFF6FF; padding: 4px 8px; border-radius: 6px; border: 1px solid #DBEAFE; margin-bottom: 8px;">
-                  <strong>🏍️ Vulnerable User:</strong> ${h.top_fatal_mode}
-                </div>
-              ` : ''}
-              <div style="text-align: center; border-top: 1px dashed #E2E8F0; padding-top: 6px;">
-                <span style="color: #2563EB; font-weight: 700; font-size: 11px; cursor: pointer;">
-                  👉 MoRTH Verified Collision Corridor Segment
-                </span>
-              </div>
-            </div>
-          `;
-          infoWindowRef.current.setContent(content);
-          infoWindowRef.current.open(map, marker);
-        }
-      });
-
-      hotspotMarkersRef.current.push(marker);
+    // Elegant, ultra-subtle focal zone highlight (NO big red blocks, NO numbers)
+    const circle = new google.maps.Circle({
+      map,
+      center: pos,
+      radius: radiusMeters,
+      strokeColor: '#2563EB',
+      strokeOpacity: 0.85,
+      strokeWeight: 2,
+      fillColor: '#3B82F6',
+      fillOpacity: 0.07,
+      clickable: false,
     });
-  }, [hotspots, showHotspots, selectedHotspot, isLoaded, onSelectHotspot]);
+    hotspotCirclesRef.current.push(circle);
+  }, [selectedHotspot, isLoaded]);
 
   // Synchronize Map view and InfoWindow when selectedHotspot changes from external selection
   useEffect(() => {
