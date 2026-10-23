@@ -13,9 +13,9 @@ import {
   Activity,
   MapPin
 } from 'lucide-react';
-import { getHotspots } from '../services/api';
+import { getHotspots, getGeoAccidents } from '../services/api';
 import { useCityFilter } from '../context/CityContext';
-import { HotspotItem } from '../types/api';
+import { HotspotItem, AccidentGeoPoint } from '../types/api';
 import { GoogleHotspotsMap } from '../components/map/GoogleHotspotsMap';
 import { SearchableDropdown } from '../components/common/SearchableDropdown';
 
@@ -59,6 +59,12 @@ export const HotspotsPage: React.FC = () => {
     queryKey: ['hotspots', targetCity, minPoints, epsKm],
     queryFn: () => getHotspots(targetCity, minPoints, epsKm),
   });
+
+  const { data: rawPoints } = useQuery({
+    queryKey: ['hotspots-geo-points', targetCity],
+    queryFn: () => getGeoAccidents(targetCity, undefined, 3000),
+  });
+  const incidentPoints: AccidentGeoPoint[] = Array.isArray(rawPoints) ? rawPoints : [];
 
   const rawHotspots: HotspotItem[] = data?.hotspots || [];
 
@@ -247,6 +253,7 @@ export const HotspotsPage: React.FC = () => {
           <div className="flex-1 w-full h-full relative">
             <GoogleHotspotsMap
               hotspots={hotspots}
+              points={incidentPoints}
               selectedHotspot={selectedHotspot}
               onSelectHotspot={handleFocusHotspot}
               flyToCenter={flyToCenter}
