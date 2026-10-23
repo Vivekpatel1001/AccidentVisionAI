@@ -172,10 +172,24 @@ export const OverviewPage: React.FC = () => {
     },
   });
 
-  // Calculate ONCE on initial mount so user has baseline results ready
+  // Auto-recalculate AI Safety Telemetry whenever any trip parameter changes (debounced 300ms)
   useEffect(() => {
-    mutation.mutate(form);
-  }, []); // Intentionally empty: do NOT auto-run on every user keystroke
+    const timer = setTimeout(() => {
+      mutation.mutate(form);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [
+    form.source,
+    form.destination,
+    form.city,
+    form.vehicle_type,
+    form.road_type,
+    form.hour,
+    form.weather,
+    form.traffic_density,
+    form.traffic_signal,
+    form.lanes,
+  ]);
 
   const handleCalculate = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -247,9 +261,9 @@ export const OverviewPage: React.FC = () => {
 
   // Compute Trip Safety Score directly derived from the trained AI models (88.64% Hazard + Severity)
   const getRiskScore = () => {
-    if (!predictionResult) return 22;
+    if (!predictionResult) return 18;
 
-    const hazardP = predictionResult.corridor_hazard?.hazard_probability ?? 0.25;
+    const hazardP = predictionResult.corridor_hazard?.hazard_probability ?? 0.20;
     const fatalP = predictionResult.probabilities?.Fatal ?? 0.15;
     const severeP = predictionResult.probabilities?.Severe ?? 0.35;
 
@@ -260,24 +274,25 @@ export const OverviewPage: React.FC = () => {
     const severityComponent = (fatalP * 20) + (severeP * 10); // ~5 - 25
 
     const score = Math.round(hazardComponent + severityComponent);
-    return Math.min(95, Math.max(8, score));
+    return Math.min(95, Math.max(5, score));
   };
 
-  const riskScore = getRiskScore();
+  const riskPercent = getRiskScore();
+  const safetyScore = Math.max(5, Math.min(98, 100 - riskPercent));
 
   const getRiskLevel = () => {
-    if (riskScore >= 60) {
+    if (safetyScore >= 75) {
       return {
-        label: 'HIGH COLLISION HAZARD ALERT',
-        sublabel: 'Elevated collision probability detected on this corridor. Reduce cruising speed and maintain extra braking distance.',
-        color: 'text-red-600',
-        border: 'border-red-300',
-        bg: 'bg-red-50',
-        badge: 'High Hazard Alert',
-        gaugeColor: '#EF4444',
+        label: 'OPTIMAL TRAVEL CONDITIONS',
+        sublabel: 'Favorable off-peak window with low collision hazard density. Lowest historical incident rate window.',
+        color: 'text-emerald-600',
+        border: 'border-emerald-300',
+        bg: 'bg-emerald-50',
+        badge: 'Safe Driving Window',
+        gaugeColor: '#10B981',
       };
     }
-    if (riskScore >= 30) {
+    if (safetyScore >= 50) {
       return {
         label: 'MODERATE RISK — CAUTION ADVISED',
         sublabel: 'Moderate traffic density or collision frequency on this corridor. Maintain safe 3-second gap.',
@@ -289,13 +304,13 @@ export const OverviewPage: React.FC = () => {
       };
     }
     return {
-      label: 'OPTIMAL TRAVEL CONDITIONS',
-      sublabel: 'Favorable off-peak window with low collision hazard density. Lowest historical incident rate window.',
-      color: 'text-emerald-600',
-      border: 'border-emerald-300',
-      bg: 'bg-emerald-50',
-      badge: 'Safe Driving Window',
-      gaugeColor: '#10B981',
+      label: 'HIGH COLLISION HAZARD ALERT',
+      sublabel: 'Elevated collision probability detected on this corridor. Reduce cruising speed and maintain extra braking distance.',
+      color: 'text-red-600',
+      border: 'border-red-300',
+      bg: 'bg-red-50',
+      badge: 'High Hazard Alert',
+      gaugeColor: '#EF4444',
     };
   };
 
@@ -816,19 +831,23 @@ export const OverviewPage: React.FC = () => {
                       stroke={riskInfo.gaugeColor}
                       strokeWidth="8"
                       strokeDasharray={251.2}
-                      strokeDashoffset={251.2 - (251.2 * riskScore) / 100}
+                      strokeDashoffset={251.2 - (251.2 * safetyScore) / 100}
                       strokeLinecap="round"
                       fill="transparent"
                       className="transition-all duration-1000 ease-out"
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-4xl font-extrabold text-slate-900 tracking-tight">{riskScore}</span>
-                    <span className="text-[10px] text-slate-500 font-bold uppercase">/ 100 Risk</span>
+                    <span className="text-4xl font-extrabold text-slate-900 tracking-tight">{safetyScore}</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">/ 100 Safety</span>
                   </div>
                 </div>
 
-                <div className="mt-3 space-y-1 px-2">
+                <div className="mt-3 space-y-1.5 px-2">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">
+                    <span>Estimated Collision Risk:</span>
+                    <span className="font-mono text-slate-950 font-black">{riskPercent}%</span>
+                  </div>
                   <div className={`text-base font-extrabold tracking-tight ${riskInfo.color}`}>
                     {riskInfo.label}
                   </div>
@@ -1079,7 +1098,7 @@ export const OverviewPage: React.FC = () => {
             city={form.city}
             source={form.source}
             destination={form.destination}
-            roadType={form.road_type}
+            roadType="All"
             isLoading={isMapLoading || isHotspotsLoading}
             onSelectPoint={handleSelectCrashPoint}
             onSelectHotspot={handleSelectHotspot}
@@ -1090,7 +1109,7 @@ export const OverviewPage: React.FC = () => {
           <div className="absolute top-3 left-3 z-[10] bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-200 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2 pointer-events-none max-w-[calc(100%-24px)] truncate">
             <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse shrink-0" />
             <span className="truncate">
-              {corridorHotspots.length} Dense Blackspots • {mapPoints.length} Crash Points Mapped
+              {corridorHotspots.length} Dense Blackspots • {rawPoints.length} Verified Crash Records
             </span>
           </div>
         </div>

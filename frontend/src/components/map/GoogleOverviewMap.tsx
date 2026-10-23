@@ -52,6 +52,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
 
   const [showHotspots, setShowHotspots] = useState(true);
   const [showIncidents, setShowIncidents] = useState(true);
+  const [activeRoadFilter, setActiveRoadFilter] = useState<'All' | 'Highway' | 'Urban' | 'Rural'>('All');
 
   const { isLoaded, loadError } = useGoogleMaps();
 
@@ -571,17 +572,18 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
 
     if (!showIncidents) return;
 
-    // Filter points matching roadType if given
+    // Filter points matching activeRoadFilter or prop roadType
+    const filterToUse = activeRoadFilter !== 'All' ? activeRoadFilter : (roadType || 'All');
     const filteredPoints = points.filter((pt) => {
-      if (!roadType || roadType === 'All') return true;
-      const target = roadType.toLowerCase();
+      if (!filterToUse || filterToUse === 'All') return true;
+      const target = filterToUse.toLowerCase();
       const actual = (pt.road_type || '').toLowerCase();
       if (target === 'local') return actual === 'local' || actual === 'urban';
       return actual === target;
     });
 
-    // Display up to 1,500 points for comprehensive roadway coverage with smooth 60fps rendering
-    const displayPoints = filteredPoints.length > 1500 ? filteredPoints.slice(0, 1500) : filteredPoints;
+    // Display up to 3,000 points for comprehensive roadway coverage with smooth 60fps rendering
+    const displayPoints = filteredPoints.length > 3000 ? filteredPoints.slice(0, 3000) : filteredPoints;
 
     displayPoints.forEach((pt) => {
       if (typeof pt.latitude !== 'number' || typeof pt.longitude !== 'number') return;
@@ -592,7 +594,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
         String(pt.accident_severity).toLowerCase() === 'severe' ||
         String(pt.accident_severity).toLowerCase() === 'major';
       const fillColor = isFatal ? '#EF4444' : isSevere ? '#F59E0B' : '#10B981';
-      const radius = isFatal ? 7 : isSevere ? 5.5 : 4.5;
+      const radius = isFatal ? 6.5 : isSevere ? 5.2 : 4.2;
 
       const marker = new google.maps.Marker({
         map,
@@ -604,7 +606,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
           fillColor,
           fillOpacity: 0.92,
           strokeColor: '#FFFFFF',
-          strokeWeight: 1.8,
+          strokeWeight: 1.6,
         },
         zIndex: isFatal ? 100 : isSevere ? 50 : 10,
       });
@@ -667,7 +669,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
 
       markersRef.current.push(marker);
     });
-  }, [points, roadType, isLoaded, showIncidents, onSelectPoint]);
+  }, [points, roadType, activeRoadFilter, isLoaded, showIncidents, onSelectPoint]);
 
   if (loadError) {
     return (
@@ -711,6 +713,26 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
           <span>⚠️</span>
           <span>Incidents ({points.length})</span>
         </button>
+
+        <div className="h-4 w-px bg-slate-200 mx-0.5" />
+
+        {/* Roadway Filter Selector */}
+        <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-[10px] font-bold">
+          {(['All', 'Highway', 'Urban'] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setActiveRoadFilter(r)}
+              className={`px-2 py-0.5 rounded-md transition-all ${
+                activeRoadFilter === r
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {r === 'All' ? 'All Roads' : r}
+            </button>
+          ))}
+        </div>
       </div>
 
       {(!isLoaded || isLoading) && (
