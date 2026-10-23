@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { GoogleAccidentMap } from '../components/map/GoogleAccidentMap';
 import {
@@ -19,15 +19,42 @@ import { getGeoAccidents } from '../services/api';
 import { useCityFilter } from '../context/CityContext';
 import { AccidentGeoPoint } from '../types/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { SearchableDropdown } from '../components/common/SearchableDropdown';
+
+const ALL_CITIES = [
+  'Agra', 'Ahmedabad', 'Ajmer', 'Alibaug', 'Amritsar', 'Asansol', 'Aurangabad',
+  'Ayodhya', 'Bengaluru', 'Bhopal', 'Bhubaneswar', 'Bikaner', 'Chandigarh',
+  'Chennai', 'Coimbatore', 'Cuttack', 'Dehradun', 'Delhi', 'Dhanbad', 'Dombivli',
+  'Durgapur', 'Electronic City', 'Faridabad', 'Ghaziabad', 'Goa', 'Gorakhpur',
+  'Gurgaon', 'Guwahati', 'Gwalior', 'Haridwar', 'Hinjewadi IT Hub', 'Howrah',
+  'Hyderabad', 'Indore', 'Jabalpur', 'Jaipur', 'Jaisalmer', 'Jalandhar',
+  'Jammu', 'Jodhpur', 'Kalyan', 'Kanpur', 'Khandala', 'Kochi', 'Kodaikanal',
+  'Kolhapur', 'Kolkata', 'Kota', 'Lonavala', 'Lucknow', 'Ludhiana', 'Madurai',
+  'Mahabaleshwar', 'Manali', 'Mangalore', 'Mathura', 'Meerut', 'Mount Abu',
+  'Mumbai', 'Mysore', 'Nagpur', 'Nashik', 'Navi Mumbai', 'Noida', 'OMR Corridor',
+  'Ooty', 'Panaji', 'Panvel', 'Patna', 'Pondicherry', 'Prayagraj', 'Pune',
+  'Puri', 'Pushkar', 'Raipur', 'Rajkot', 'Ranchi', 'Rishikesh', 'Satara',
+  'Shillong', 'Shimla', 'Shirdi', 'Siliguri', 'Solapur', 'Sriperumbudur',
+  'Srinagar', 'Surat', 'Thane', 'Thiruvananthapuram', 'Tirupati', 'Udaipur',
+  'Udupi', 'Vadodara', 'Varanasi', 'Vasai', 'Vijayawada', 'Virar', 'Visakhapatnam',
+  'Vrindavan', 'Warangal', 'Whitefield'
+];
 
 export const AccidentMapPage: React.FC = () => {
   const { selectedCity, setSelectedCity } = useCityFilter();
+  const [activeCity, setActiveCity] = useState<string>(selectedCity || 'Mumbai');
   const [severityFilter, setSeverityFilter] = useState<string>('');
   const [selectedIncident, setSelectedIncident] = useState<AccidentGeoPoint | null>(null);
 
+  useEffect(() => {
+    if (selectedCity && selectedCity !== activeCity) {
+      setActiveCity(selectedCity);
+    }
+  }, [selectedCity]);
+
   const { data: points, isLoading } = useQuery({
-    queryKey: ['geo-accidents', selectedCity, severityFilter],
-    queryFn: () => getGeoAccidents(selectedCity, severityFilter, 4000),
+    queryKey: ['geo-accidents', activeCity, severityFilter],
+    queryFn: () => getGeoAccidents(activeCity, severityFilter, 4000),
   });
 
   const pointsList = Array.isArray(points) ? points : [];
@@ -58,23 +85,42 @@ export const AccidentMapPage: React.FC = () => {
             Accident Collision Blackspot Explorer
           </h1>
           <p className="text-slate-600 text-sm mt-1 max-w-2xl">
-            Explore verified accident coordinates, impact severity clusters, and road geometry attributes across 8 metropolitan cities.
+            Explore verified accident coordinates, impact severity clusters, and road geometry attributes across 50 Indian metropolitan cities and corridors.
           </p>
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm" />
-            <span>Fatal</span>
+        {/* City Selector & Legend */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="w-full sm:w-60">
+            <SearchableDropdown
+              label="Selected Jurisdiction"
+              sublabel="50+ cities • instant pan"
+              value={activeCity}
+              options={ALL_CITIES}
+              placeholder="Search or select city..."
+              onChange={(val) => {
+                if (val) {
+                  setActiveCity(val);
+                  setSelectedCity(val);
+                }
+              }}
+              badge={`${ALL_CITIES.length} cities`}
+            />
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-amber-500 shadow-sm" />
-            <span>Severe</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
-            <span>Minor</span>
+
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 shrink-0 self-start sm:self-auto">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm" />
+              <span>Fatal</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm" />
+              <span>Severe</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
+              <span>Minor</span>
+            </div>
           </div>
         </div>
       </div>
@@ -113,7 +159,7 @@ export const AccidentMapPage: React.FC = () => {
             {isLoading ? (
               <span className="animate-pulse text-blue-600">Loading incidents...</span>
             ) : (
-              <span>{pointsList.length.toLocaleString()} verified spots</span>
+              <span>{pointsList.length.toLocaleString()} verified spots ({activeCity})</span>
             )}
           </div>
         </div>
@@ -122,7 +168,7 @@ export const AccidentMapPage: React.FC = () => {
         <div className="flex-1 h-full w-full relative">
           <GoogleAccidentMap
             points={pointsList}
-            city={selectedCity || 'Mumbai'}
+            city={activeCity}
             severityFilter={severityFilter}
             selectedIncident={selectedIncident}
             onSelectIncident={setSelectedIncident}

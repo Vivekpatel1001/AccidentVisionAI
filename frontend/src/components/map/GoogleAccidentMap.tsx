@@ -28,11 +28,22 @@ export const GoogleAccidentMap: React.FC<GoogleAccidentMapProps> = ({
 
   const { isLoaded, loadError } = useGoogleMaps();
 
+  // Helper to resolve city coordinates
+  const resolveCityCoords = (name?: string) => {
+    if (!name) return null;
+    const clean = name.trim();
+    if (CITY_COORDINATES[clean]) return CITY_COORDINATES[clean];
+    const found = Object.keys(CITY_COORDINATES).find(
+      (k) => k.toLowerCase() === clean.toLowerCase()
+    );
+    return found ? CITY_COORDINATES[found] : null;
+  };
+
   // Initialize Map
   useEffect(() => {
     if (!isLoaded || !mapContainerRef.current || mapInstanceRef.current) return;
 
-    const cityMeta = CITY_COORDINATES[city] || DEFAULT_MAP_CENTER;
+    const cityMeta = resolveCityCoords(city) || DEFAULT_MAP_CENTER;
 
     const map = new google.maps.Map(mapContainerRef.current, {
       center: { lat: cityMeta.lat, lng: cityMeta.lng },
@@ -55,7 +66,7 @@ export const GoogleAccidentMap: React.FC<GoogleAccidentMapProps> = ({
   // Handle City Change
   useEffect(() => {
     if (!mapInstanceRef.current) return;
-    const cityMeta = CITY_COORDINATES[city];
+    const cityMeta = resolveCityCoords(city);
     if (cityMeta) {
       mapInstanceRef.current.panTo({ lat: cityMeta.lat, lng: cityMeta.lng });
       mapInstanceRef.current.setZoom(cityMeta.zoom);

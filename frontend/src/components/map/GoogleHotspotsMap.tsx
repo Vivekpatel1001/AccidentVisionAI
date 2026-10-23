@@ -31,11 +31,22 @@ export const GoogleHotspotsMap: React.FC<GoogleHotspotsMapProps> = ({
 
   const { isLoaded, loadError } = useGoogleMaps();
 
+  // Helper to resolve city coordinates
+  const resolveCityCoords = (name?: string) => {
+    if (!name) return null;
+    const clean = name.trim();
+    if (CITY_COORDINATES[clean]) return CITY_COORDINATES[clean];
+    const found = Object.keys(CITY_COORDINATES).find(
+      (k) => k.toLowerCase() === clean.toLowerCase()
+    );
+    return found ? CITY_COORDINATES[found] : null;
+  };
+
   // Initialize Map
   useEffect(() => {
     if (!isLoaded || !mapContainerRef.current || mapInstanceRef.current) return;
 
-    const cityMeta = selectedCity ? CITY_COORDINATES[selectedCity] : null;
+    const cityMeta = resolveCityCoords(selectedCity);
     const initialCenter = cityMeta
       ? { lat: cityMeta.lat, lng: cityMeta.lng }
       : { lat: DEFAULT_MAP_CENTER.lat, lng: DEFAULT_MAP_CENTER.lng };
@@ -65,12 +76,12 @@ export const GoogleHotspotsMap: React.FC<GoogleHotspotsMapProps> = ({
   // Handle City Pan/Zoom
   useEffect(() => {
     if (!mapInstanceRef.current) return;
-    const cityMeta = selectedCity ? CITY_COORDINATES[selectedCity] : null;
+    const cityMeta = resolveCityCoords(selectedCity);
 
     if (cityMeta) {
       mapInstanceRef.current.panTo({ lat: cityMeta.lat, lng: cityMeta.lng });
       mapInstanceRef.current.setZoom(cityMeta.zoom);
-    } else if (hotspots.length > 0) {
+    } else if (hotspots.length > 0 && typeof hotspots[0].centroid_lat === 'number') {
       mapInstanceRef.current.panTo({ lat: hotspots[0].centroid_lat, lng: hotspots[0].centroid_lon });
       mapInstanceRef.current.setZoom(selectedCity ? 12 : 6);
     }
@@ -128,7 +139,7 @@ export const GoogleHotspotsMap: React.FC<GoogleHotspotsMapProps> = ({
       const marker = new google.maps.Marker({
         map,
         position,
-        title: `Cluster #${h.cluster_id} - ${h.city}`,
+        title: `${h.name || ('Cluster #' + h.cluster_id)} - ${h.city}`,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: markerSize,
@@ -148,22 +159,35 @@ export const GoogleHotspotsMap: React.FC<GoogleHotspotsMapProps> = ({
       marker.addListener('click', () => {
         onSelectHotspot(h);
         if (infoWindowRef.current) {
+          const fatalPct = (h.fatal_ratio * 100).toFixed(1);
+          const isHighFatal = parseFloat(fatalPct) > 25;
           const infoContent = `
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 4px 6px; min-width: 190px; color: #0F172A;">
-              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 5px; margin-bottom: 6px;">
-                <span style="font-weight: 800; font-size: 13px; color: #0F172A;">Cluster #${h.cluster_id}</span>
-                <span style="font-weight: 700; font-size: 11px; color: #2563EB; background: #EFF6FF; padding: 1px 6px; border-radius: 6px;">${h.city}</span>
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 6px 8px; min-width: 240px; max-width: 300px; color: #0F172A; line-height: 1.45;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 8px;">
+                <div>
+                  <span style="font-weight: 800; font-size: 13px; color: #DC2626;">🔥 ${h.name || ('Cluster #' + h.cluster_id)}</span>
+                  <div style="font-size: 10px; color: #64748B;">${h.city} • High-Density Blackspot</div>
+                </div>
+                <span style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 9999px; ${isHighFatal ? 'background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;' : 'background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A;'}">
+                  ${fatalPct}% Fatal
+                </span>
               </div>
-              <div style="font-size: 12px; color: #334155; margin-bottom: 3px;">
-                Total Collisions: <strong style="color: #0F172A;">${h.size}</strong>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; background: #F8FAFC; padding: 6px 8px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 8px;">
+                <div><span style="color: #64748B;">Crashes:</span> <strong style="color: #0F172A;">${h.size}</strong></div>
+                <div><span style="color: #64748B;">Fatalities:</span> <strong style="color: #DC2626;">${h.fatal_count}</strong></div>
+                <div><span style="color: #64748B;">Density:</span> <strong style="color: #0F172A;">${h.density_per_sqkm} /km²</strong></div>
+                <div><span style="color: #64748B;">Roadway:</span> <strong style="color: #0F172A;">${h.dominant_road || 'Highway'}</strong></div>
               </div>
-              <div style="font-size: 12px; color: #DC2626; font-weight: 700; margin-bottom: 4px;">
-                Fatal Crashes: ${h.fatal_count} (${(h.fatal_ratio * 100).toFixed(1)}%)
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 11px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 4px; margin-top: 4px;">
-                <span>${h.dominant_road}</span>
-                <strong style="color: #0F172A;">${h.density_per_sqkm} /km²</strong>
-              </div>
+              ${h.top_violation ? `
+                <div style="font-size: 11px; color: #9A3412; background: #FFF7ED; padding: 4px 8px; border-radius: 6px; border: 1px solid #FFEDD5; margin-bottom: 6px;">
+                  <strong>⚠️ Primary Violation:</strong> ${h.top_violation}
+                </div>
+              ` : ''}
+              ${h.top_fatal_mode ? `
+                <div style="font-size: 11px; color: #1E40AF; background: #EFF6FF; padding: 4px 8px; border-radius: 6px; border: 1px solid #DBEAFE; margin-bottom: 6px;">
+                  <strong>🏍️ Vulnerable User:</strong> ${h.top_fatal_mode}
+                </div>
+              ` : ''}
             </div>
           `;
           infoWindowRef.current.setContent(infoContent);

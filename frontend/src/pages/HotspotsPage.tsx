@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Flame,
@@ -10,23 +10,54 @@ import {
   Layers,
   Sparkles,
   ShieldCheck,
-  Activity
+  Activity,
+  MapPin
 } from 'lucide-react';
 import { getHotspots } from '../services/api';
 import { useCityFilter } from '../context/CityContext';
 import { HotspotItem } from '../types/api';
 import { GoogleHotspotsMap } from '../components/map/GoogleHotspotsMap';
+import { SearchableDropdown } from '../components/common/SearchableDropdown';
+
+const ALL_CITIES = [
+  'All Cities (National)',
+  'Agra', 'Ahmedabad', 'Ajmer', 'Alibaug', 'Amritsar', 'Asansol', 'Aurangabad',
+  'Ayodhya', 'Bengaluru', 'Bhopal', 'Bhubaneswar', 'Bikaner', 'Chandigarh',
+  'Chennai', 'Coimbatore', 'Cuttack', 'Dehradun', 'Delhi', 'Dhanbad', 'Dombivli',
+  'Durgapur', 'Electronic City', 'Faridabad', 'Ghaziabad', 'Goa', 'Gorakhpur',
+  'Gurgaon', 'Guwahati', 'Gwalior', 'Haridwar', 'Hinjewadi IT Hub', 'Howrah',
+  'Hyderabad', 'Indore', 'Jabalpur', 'Jaipur', 'Jaisalmer', 'Jalandhar',
+  'Jammu', 'Jodhpur', 'Kalyan', 'Kanpur', 'Khandala', 'Kochi', 'Kodaikanal',
+  'Kolhapur', 'Kolkata', 'Kota', 'Lonavala', 'Lucknow', 'Ludhiana', 'Madurai',
+  'Mahabaleshwar', 'Manali', 'Mangalore', 'Mathura', 'Meerut', 'Mount Abu',
+  'Mumbai', 'Mysore', 'Nagpur', 'Nashik', 'Navi Mumbai', 'Noida', 'OMR Corridor',
+  'Ooty', 'Panaji', 'Panvel', 'Patna', 'Pondicherry', 'Prayagraj', 'Pune',
+  'Puri', 'Pushkar', 'Raipur', 'Rajkot', 'Ranchi', 'Rishikesh', 'Satara',
+  'Shillong', 'Shimla', 'Shirdi', 'Siliguri', 'Solapur', 'Sriperumbudur',
+  'Srinagar', 'Surat', 'Thane', 'Thiruvananthapuram', 'Tirupati', 'Udaipur',
+  'Udupi', 'Vadodara', 'Varanasi', 'Vasai', 'Vijayawada', 'Virar', 'Visakhapatnam',
+  'Vrindavan', 'Warangal', 'Whitefield'
+];
 
 export const HotspotsPage: React.FC = () => {
-  const { selectedCity } = useCityFilter();
+  const { selectedCity, setSelectedCity } = useCityFilter();
+  const [activeCity, setActiveCity] = useState<string>(selectedCity || 'All Cities (National)');
   const [minPoints, setMinPoints] = useState<number>(8);
   const [epsKm, setEpsKm] = useState<number>(0.8);
   const [selectedHotspot, setSelectedHotspot] = useState<HotspotItem | null>(null);
   const [flyToCenter, setFlyToCenter] = useState<[number, number] | null>(null);
 
+  useEffect(() => {
+    if (selectedCity && selectedCity !== activeCity) {
+      setActiveCity(selectedCity);
+    }
+  }, [selectedCity]);
+
+  const targetCity = activeCity === 'All Cities (National)' || !activeCity ? undefined : activeCity;
+
   const { data, isLoading } = useQuery({
-    queryKey: ['hotspots', selectedCity, minPoints, epsKm],
-    queryFn: () => getHotspots(selectedCity, minPoints, epsKm),
+    queryKey: ['hotspots', targetCity, minPoints, epsKm],
+    queryFn: () => getHotspots(targetCity, minPoints, epsKm),
   });
 
   const rawHotspots: HotspotItem[] = data?.hotspots || [];
@@ -46,6 +77,7 @@ export const HotspotsPage: React.FC = () => {
 
       return {
         ...h,
+        name: h.name || `Cluster #${h.cluster_id}`,
         centroid_lat: lat,
         center_latitude: lat,
         centroid_lon: lon,
@@ -89,9 +121,24 @@ export const HotspotsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 shrink-0">
-          <span className="text-slate-500">Active Zone:</span>
-          <span className="font-extrabold text-blue-600">{selectedCity || 'All 8 Metros'}</span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <div className="w-full sm:w-64">
+            <SearchableDropdown
+              label="Active Hotspot Zone / City"
+              sublabel="all 50+ cities • no limits"
+              value={activeCity}
+              options={ALL_CITIES}
+              placeholder="Search or select city..."
+              onChange={(val) => {
+                const clean = val || 'All Cities (National)';
+                setActiveCity(clean);
+                if (clean !== 'All Cities (National)') {
+                  setSelectedCity(clean);
+                }
+              }}
+              badge={`${ALL_CITIES.length - 1} cities`}
+            />
+          </div>
         </div>
       </div>
 
@@ -203,7 +250,7 @@ export const HotspotsPage: React.FC = () => {
               selectedHotspot={selectedHotspot}
               onSelectHotspot={handleFocusHotspot}
               flyToCenter={flyToCenter}
-              selectedCity={selectedCity}
+              selectedCity={targetCity}
               epsKm={epsKm}
               isLoading={isLoading}
             />
@@ -237,15 +284,17 @@ export const HotspotsPage: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center space-x-2">
-                        <span className={`w-5 h-5 rounded-full font-mono font-bold flex items-center justify-center text-[10px] ${
+                      <div className="flex items-center space-x-2 truncate">
+                        <span className={`w-5 h-5 rounded-full font-mono font-bold flex items-center justify-center text-[10px] shrink-0 ${
                           hasHighFatal ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
                         }`}>
                           #{idx + 1}
                         </span>
-                        <span className="font-bold text-xs text-slate-900">{h.city}</span>
+                        <span className="font-extrabold text-xs text-slate-900 truncate">
+                          🔥 {h.name || ('Cluster #' + h.cluster_id)}
+                        </span>
                       </div>
-                      <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded-full border ${
+                      <span className={`text-[11px] font-bold font-mono px-2 py-0.5 rounded-full border shrink-0 ${
                         hasHighFatal
                           ? 'bg-red-50 text-red-700 border-red-200'
                           : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -254,9 +303,20 @@ export const HotspotsPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div className="text-xs font-semibold text-slate-800">
-                      {h.dominant_road || 'Expressway / Arterial Corridor'}
+                    <div className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                      <span className="truncate">{h.city} • {h.dominant_road || 'Corridor'}</span>
                     </div>
+
+                    {h.top_violation && (
+                      <div className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 truncate mt-1">
+                        ⚠️ Violation: {h.top_violation}
+                      </div>
+                    )}
+                    {h.top_fatal_mode && (
+                      <div className="text-[10px] text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 truncate mt-1">
+                        🏍️ Vulnerable: {h.top_fatal_mode}
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2 font-mono">
                       <span>{h.size} verified crashes</span>
