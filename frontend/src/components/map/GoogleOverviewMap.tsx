@@ -342,7 +342,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     }
   }, [city, destination]);
 
-  // Plot Selected Hotspot Focus Boundary (Subtle highlight only when user selects a hotspot from the dossier)
+  // Plot Hotspot Clusters & Selected Focus Boundary
   useEffect(() => {
     if (!mapInstanceRef.current || !isLoaded) return;
     const map = mapInstanceRef.current;
@@ -353,34 +353,110 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     hotspotCirclesRef.current = [];
     hotspotMarkersRef.current = [];
 
-    if (!selectedHotspot) return;
+    // 1. Subtle focal zone highlight when a hotspot is selected
+    if (selectedHotspot) {
+      const lat = typeof selectedHotspot.centroid_lat === 'number'
+        ? selectedHotspot.centroid_lat
+        : (typeof selectedHotspot.center_latitude === 'number' ? selectedHotspot.center_latitude : null);
+      const lon = typeof selectedHotspot.centroid_lon === 'number'
+        ? selectedHotspot.centroid_lon
+        : (typeof selectedHotspot.center_longitude === 'number' ? selectedHotspot.center_longitude : null);
 
-    const lat = typeof selectedHotspot.centroid_lat === 'number'
-      ? selectedHotspot.centroid_lat
-      : (typeof selectedHotspot.center_latitude === 'number' ? selectedHotspot.center_latitude : null);
-    const lon = typeof selectedHotspot.centroid_lon === 'number'
-      ? selectedHotspot.centroid_lon
-      : (typeof selectedHotspot.center_longitude === 'number' ? selectedHotspot.center_longitude : null);
+      if (lat !== null && lon !== null && !isNaN(lat) && !isNaN(lon)) {
+        const pos = { lat, lng: lon };
+        const radiusMeters = selectedHotspot.radius_m || 800;
 
-    if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
+        const circle = new google.maps.Circle({
+          map,
+          center: pos,
+          radius: radiusMeters,
+          strokeColor: '#2563EB',
+          strokeOpacity: 0.85,
+          strokeWeight: 2,
+          fillColor: '#3B82F6',
+          fillOpacity: 0.07,
+          clickable: false,
+        });
+        hotspotCirclesRef.current.push(circle);
+      }
+    }
 
-    const pos = { lat, lng: lon };
-    const radiusMeters = selectedHotspot.radius_m || 800;
+    // 2. Plot verified hotspot cluster count badges (Image 1 style)
+    if (hotspots && hotspots.length > 0) {
+      hotspots.forEach((h) => {
+        const lat = typeof h.centroid_lat === 'number' ? h.centroid_lat : (typeof h.center_latitude === 'number' ? h.center_latitude : null);
+        const lon = typeof h.centroid_lon === 'number' ? h.centroid_lon : (typeof h.center_longitude === 'number' ? h.center_longitude : null);
+        if (lat === null || lon === null || isNaN(lat) || isNaN(lon)) return;
 
-    // Elegant, ultra-subtle focal zone highlight (NO big red blocks, NO numbers)
-    const circle = new google.maps.Circle({
-      map,
-      center: pos,
-      radius: radiusMeters,
-      strokeColor: '#2563EB',
-      strokeOpacity: 0.85,
-      strokeWeight: 2,
-      fillColor: '#3B82F6',
-      fillOpacity: 0.07,
-      clickable: false,
-    });
-    hotspotCirclesRef.current.push(circle);
-  }, [selectedHotspot, isLoaded]);
+        const count = h.size || h.cluster_size || 1;
+        const isSelected = selectedHotspot?.cluster_id === h.cluster_id;
+        const fatalPct = h.fatal_percentage || (h.fatal_ratio ? h.fatal_ratio * 100 : 0);
+        const hasFatal = (h.fatal_count || 0) > 0;
+
+        const scale = isSelected ? 18 : Math.min(20, Math.max(12, Math.round(11 + Math.sqrt(count) * 1.3)));
+
+        const marker = new google.maps.Marker({
+          map,
+          position: { lat, lng: lon },
+          title: `${h.name || ('Cluster #' + h.cluster_id)} • ${h.city} (${count} crashes)`,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale,
+            fillColor: hasFatal ? '#DC2626' : '#EA580C',
+            fillOpacity: 0.95,
+            strokeColor: isSelected ? '#1E3A8A' : '#FFFFFF',
+            strokeWeight: isSelected ? 3 : 2,
+          },
+          label: {
+            text: count > 999 ? `${(count / 1000).toFixed(1)}k` : String(count),
+            color: '#FFFFFF',
+            fontSize: '11px',
+            fontWeight: 'bold',
+          },
+          zIndex: isSelected ? 999 : 200 + Math.min(count, 500),
+        });
+
+        marker.addListener('click', () => {
+          if (onSelectHotspot) onSelectHotspot(h);
+          map.panTo({ lat, lng: lon });
+
+          if (infoWindowRef.current) {
+            const content = `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 6px 8px; min-width: 230px; max-width: 290px; color: #0F172A; line-height: 1.45;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 8px;">
+                  <div>
+                    <span style="font-weight: 800; font-size: 13px; color: #DC2626;">🔥 ${h.name || ('Cluster #' + h.cluster_id)}</span>
+                    <div style="font-size: 10px; color: #64748B;">${h.city} • High-Risk Blackspot</div>
+                  </div>
+                  <span style="font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA;">
+                    ${Number(fatalPct).toFixed(1)}% Fatal
+                  </span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; background: #F8FAFC; padding: 6px 8px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 6px;">
+                  <div><span style="color: #64748B;">Collisions:</span> <strong style="color: #0F172A;">${count}</strong></div>
+                  <div><span style="color: #64748B;">Fatalities:</span> <strong style="color: #DC2626;">${h.fatal_count || 0}</strong></div>
+                  <div><span style="color: #64748B;">Density:</span> <strong style="color: #0F172A;">${h.density_per_sqkm || 120}/km²</strong></div>
+                  <div><span style="color: #64748B;">Roadway:</span> <strong style="color: #0F172A;">${h.dominant_road || h.top_road_type || 'Highway'}</strong></div>
+                </div>
+                ${h.top_violation ? `
+                  <div style="font-size: 10px; color: #9A3412; background: #FFF7ED; padding: 3px 6px; border-radius: 6px; border: 1px solid #FFEDD5; margin-bottom: 4px;">
+                    <strong>Violation:</strong> ${h.top_violation}
+                  </div>
+                ` : ''}
+                <div style="text-align: center; border-top: 1px dashed #E2E8F0; padding-top: 5px; font-size: 10px; color: #2563EB; font-weight: 700;">
+                  Click to inspect full investigation dossier
+                </div>
+              </div>
+            `;
+            infoWindowRef.current.setContent(content);
+            infoWindowRef.current.open(map, marker);
+          }
+        });
+
+        hotspotMarkersRef.current.push(marker);
+      });
+    }
+  }, [hotspots, selectedHotspot, isLoaded, onSelectHotspot]);
 
   // Synchronize Map view and InfoWindow when selectedHotspot changes from external selection
   useEffect(() => {

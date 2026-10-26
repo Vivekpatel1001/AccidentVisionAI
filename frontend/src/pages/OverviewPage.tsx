@@ -31,13 +31,12 @@ import {
   Thermometer,
   ShieldCheck,
   Zap,
-  Building2,
 } from 'lucide-react';
 import { predictSeverity, getOverview, getGeoAccidents, getHotspots } from '../services/api';
 import { PredictRequest, PredictResponse, AccidentGeoPoint, HotspotItem } from '../types/api';
 import { useCityFilter } from '../context/CityContext';
 import { SearchableDropdown } from '../components/common/SearchableDropdown';
-import { MorthNationalExplorer } from '../components/analytics/MorthNationalExplorer';
+import { deriveMeteorologicalForecast, MeteorologicalForecast } from '../utils/weatherIntelligence';
 
 const CITIES = [
   'Mumbai',
@@ -132,7 +131,55 @@ export const OverviewPage: React.FC = () => {
   const [selectedMapPoint, setSelectedMapPoint] = useState<AccidentGeoPoint | null>(null);
   const [selectedHotspot, setSelectedHotspot] = useState<HotspotItem | null>(null);
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
-  const [showMorthExplorer, setShowMorthExplorer] = useState(false);
+
+  // Today's date in YYYY-MM-DD
+  const todayIso = new Date().toISOString().split('T')[0];
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowIso = tomorrowDate.toISOString().split('T')[0];
+
+  const [travelDate, setTravelDate] = useState<string>(todayIso);
+  const [isCustomWeatherOverride, setIsCustomWeatherOverride] = useState<boolean>(false);
+
+  // Synchronize automated weather & road surface whenever travel date, hour, or corridor location changes
+  useEffect(() => {
+    if (isCustomWeatherOverride) return;
+    const derived = deriveMeteorologicalForecast(travelDate, form.hour, form.source || form.city);
+    const d = new Date(travelDate);
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayOfWeek = dayNames[d.getDay()] || 'Friday';
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+
+    setForm((prev) => ({
+      ...prev,
+      weather: derived.weather,
+      temperature: derived.temperature,
+      visibility: derived.visibility,
+      traffic_density: derived.trafficDensity,
+      day_of_week: dayOfWeek,
+      is_weekend: isWeekend,
+      is_peak_hour: derived.trafficDensity === 'High',
+    }));
+  }, [travelDate, form.hour, form.source, form.city, isCustomWeatherOverride]);
+
+  const handleDateChange = (val: string) => {
+    setTravelDate(val);
+  };
+
+  const handleDatePreset = (preset: 'today' | 'tomorrow' | 'weekend') => {
+    const d = new Date();
+    if (preset === 'tomorrow') {
+      d.setDate(d.getDate() + 1);
+    } else if (preset === 'weekend') {
+      const day = d.getDay();
+      const daysUntilSaturday = (6 - day + 7) % 7 || 7;
+      d.setDate(d.getDate() + daysUntilSaturday);
+    }
+    const iso = d.toISOString().split('T')[0];
+    setTravelDate(iso);
+  };
+
+  const currentForecast = deriveMeteorologicalForecast(travelDate, form.hour, form.source || form.city);
 
   // Sync city when global filter changes
   useEffect(() => {
@@ -467,69 +514,7 @@ export const OverviewPage: React.FC = () => {
           Estimate real-time corridor collision hazard and potential severity before driving. Backed by verified UN WorldPop 1-km demographic density and 20,000 police collision records.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 pt-1">
-          <div className="flex items-center gap-1.5 text-blue-700 bg-white px-2.5 sm:px-3 py-1 rounded-lg border border-blue-200 shadow-sm text-[11px] sm:text-xs font-bold">
-            <Shield className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span>88.64% Hazard Accuracy (ROC-AUC: 0.9609)</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-emerald-700 bg-white px-2.5 sm:px-3 py-1 rounded-lg border border-emerald-200 shadow-sm text-[11px] sm:text-xs font-bold">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span>WorldPop 1-km Demographic Raster</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-slate-700 bg-white px-2.5 sm:px-3 py-1 rounded-lg border border-slate-200 shadow-sm text-[11px] sm:text-xs font-bold">
-            <Navigation className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-            <span>IRC Roadway Safety Standards</span>
-          </div>
-        </div>
       </div>
-
-      {/* MoRTH 2024 Verified Road Safety Intelligence Explorer Callout */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-700/80 rounded-2xl p-4 sm:p-5 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="p-2.5 bg-blue-500/20 border border-blue-400/30 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-            <Building2 className="w-5 h-5 text-blue-300" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-                Government Verified • MoRTH 2024
-              </span>
-              <span className="text-xs text-blue-200 font-medium">
-                Official Ministry of Road Transport & Highways Open Intelligence
-              </span>
-            </div>
-            <h3 className="text-base font-bold text-white mt-1">
-              Explore 50 Million-Plus Indian Metros & 36 States Official Crash Records
-            </h3>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Access official MoRTH fatality rates, primary violations, and pick origin/destination directly from verified statistics.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowMorthExplorer(!showMorthExplorer)}
-          className="self-start md:self-auto px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 shrink-0 border border-blue-400/30"
-        >
-          <span>{showMorthExplorer ? 'Hide MoRTH Explorer ▲' : 'Open MoRTH Explorer ▼'}</span>
-          <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showMorthExplorer ? 'rotate-90' : ''}`} />
-        </button>
-      </div>
-
-      {/* Conditionally Render MorthNationalExplorer */}
-      {showMorthExplorer && (
-        <MorthNationalExplorer
-          onSelectOrigin={(city) => {
-            handleSourceChange(city);
-          }}
-          onSelectDestination={(city) => {
-            handleDestinationChange(city);
-          }}
-          selectedSource={form.source || form.city}
-          selectedDestination={form.destination}
-        />
-      )}
 
       {/* Centered Trip Planning Card */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 md:p-7 shadow-sm space-y-5 sm:space-y-6 w-full min-w-0">
@@ -679,92 +664,223 @@ export const OverviewPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Section 4: Departure Window */}
-          <div className="space-y-2.5 bg-slate-50 border border-slate-200 rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-blue-600" />
-                <span>4. Planned Time of Departure</span>
-              </label>
-              <span className="font-mono text-xs font-extrabold text-blue-700 bg-white px-2.5 py-0.5 rounded border border-slate-200 shadow-sm">
-                {form.hour.toString().padStart(2, '0')}:00 HRS
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {TIME_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => handleHourChange(preset.hours)}
-                  className={`px-3 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5 border font-semibold ${
-                    form.hour === preset.hours
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>{preset.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${form.hour === preset.hours ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                    {preset.badge}
+          {/* Section 4: Planned Travel Date & Schedule */}
+          <div className="space-y-4 bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Date Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                    <span>4. Planned Travel Date</span>
+                  </label>
+                  <span className="font-mono text-[11px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-xs">
+                    {new Date(travelDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
-                </button>
-              ))}
-            </div>
+                </div>
 
-            <input
-              type="range"
-              min={0}
-              max={23}
-              value={form.hour}
-              onChange={(e) => handleHourChange(parseInt(e.target.value))}
-              className="w-full accent-blue-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
-            />
-          </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={travelDate}
+                    min={todayIso}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm cursor-pointer"
+                  />
+                </div>
 
-          {/* Section 5: Weather & Atmosphere */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Weather & Road Surface
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'Clear', label: 'Clear & Dry', icon: Sun },
-                  { id: 'Rainy', label: 'Rain / Wet', icon: CloudRain },
-                  { id: 'Foggy', label: 'Fog / Low Vis', icon: CloudFog },
-                ].map((w) => {
-                  const Icon = w.icon;
-                  const isSelected = form.weather === w.id;
-                  return (
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleDatePreset('today')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all border ${
+                      travelDate === todayIso
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDatePreset('tomorrow')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all border ${
+                      travelDate === tomorrowIso
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    Tomorrow
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDatePreset('weekend')}
+                    className="px-2.5 py-1 rounded-md text-[11px] font-bold transition-all border bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                  >
+                    This Weekend
+                  </button>
+                </div>
+              </div>
+
+              {/* Time of Departure Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Departure Time Window</span>
+                  </label>
+                  <span className="font-mono text-xs font-extrabold text-blue-700 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-xs">
+                    {form.hour.toString().padStart(2, '0')}:00 HRS
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {TIME_PRESETS.map((preset) => (
                     <button
-                      key={w.id}
+                      key={preset.label}
                       type="button"
-                      onClick={() => setForm((prev) => ({ ...prev, weather: w.id }))}
-                      className={`flex flex-col items-center justify-center p-2.5 rounded-lg border text-center transition-all ${
-                        isSelected
-                          ? 'bg-blue-50 border-blue-600 text-blue-900 font-bold ring-1 ring-blue-600'
-                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      onClick={() => handleHourChange(preset.hours)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] transition-all flex items-center gap-1 border font-semibold ${
+                        form.hour === preset.hours
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
                       }`}
                     >
-                      <Icon className={`w-4 h-4 mb-1 ${isSelected ? 'text-blue-600' : 'text-slate-500'}`} />
-                      <span className="text-[11px] font-bold">{w.label}</span>
+                      <span>{preset.label}</span>
+                      <span className={`text-[10px] px-1 py-0.2 rounded font-mono ${form.hour === preset.hours ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        {preset.badge}
+                      </span>
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
+
+                <input
+                  type="range"
+                  min={0}
+                  max={23}
+                  value={form.hour}
+                  onChange={(e) => handleHourChange(parseInt(e.target.value))}
+                  className="w-full accent-blue-600 cursor-pointer h-2 bg-slate-200 rounded-lg mt-1"
+                />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Traffic Congestion & Control
+            {/* Automated Meteorological & Road Surface Intelligence Indicator */}
+            <div className="bg-white border border-blue-100 rounded-xl p-3.5 shadow-xs space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-900 flex items-center gap-2">
+                      <span>Automated Weather & Road Surface Prediction</span>
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        Auto-Derived from Travel Date
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Synchronized with seasonal corridor telemetry for {form.source || form.city} on {new Date(travelDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCustomWeatherOverride(!isCustomWeatherOverride)}
+                  className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-2"
+                >
+                  {isCustomWeatherOverride ? 'Reset to Auto-Detection' : 'Manual Weather Simulation (Optional)'}
+                </button>
+              </div>
+
+              {/* 4 Telemetry Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
+                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    {currentForecast.weather === 'Rainy' ? <CloudRain className="w-3 h-3 text-blue-600" /> : currentForecast.weather === 'Foggy' ? <CloudFog className="w-3 h-3 text-slate-600" /> : <Sun className="w-3 h-3 text-amber-500" />}
+                    <span>Atmosphere</span>
+                  </div>
+                  <div className="font-bold text-slate-900 mt-0.5 truncate">{form.weather} Skies</div>
+                </div>
+
+                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    <Thermometer className="w-3 h-3 text-rose-500" />
+                    <span>Temperature</span>
+                  </div>
+                  <div className="font-bold text-slate-900 mt-0.5">{form.temperature}°C</div>
+                </div>
+
+                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    <Eye className="w-3 h-3 text-indigo-500" />
+                    <span>Visibility</span>
+                  </div>
+                  <div className="font-bold text-slate-900 mt-0.5">{form.visibility} km</div>
+                </div>
+
+                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                    <Navigation className="w-3 h-3 text-emerald-600" />
+                    <span>Road Friction</span>
+                  </div>
+                  <div className="font-bold text-slate-900 mt-0.5 truncate text-[11px]">{currentForecast.surfaceCondition}</div>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-600 bg-slate-50/60 rounded-md p-2 border border-slate-100 flex items-start gap-1.5">
+                <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                <span>{currentForecast.summary}</span>
+              </div>
+
+              {/* Optional Manual Weather Override */}
+              {isCustomWeatherOverride && (
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="text-[11px] font-bold text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                    ⚠️ Manual Weather Simulation Active. Select custom atmospheric condition:
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'Clear', label: 'Clear & Dry', icon: Sun },
+                      { id: 'Rainy', label: 'Rain / Wet', icon: CloudRain },
+                      { id: 'Foggy', label: 'Fog / Low Vis', icon: CloudFog },
+                    ].map((w) => {
+                      const Icon = w.icon;
+                      const isSelected = form.weather === w.id;
+                      return (
+                        <button
+                          key={w.id}
+                          type="button"
+                          onClick={() => setForm((prev) => ({ ...prev, weather: w.id }))}
+                          className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
+                            isSelected
+                              ? 'bg-blue-50 border-blue-600 text-blue-900 font-bold ring-1 ring-blue-600'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <Icon className={`w-3.5 h-3.5 mb-1 ${isSelected ? 'text-blue-600' : 'text-slate-500'}`} />
+                          <span className="text-[11px] font-bold">{w.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Traffic Congestion & Control */}
+            <div className="pt-1">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 block">
+                Corridor Traffic & Signal Control
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <select
                   value={form.traffic_density}
                   onChange={(e) => setForm((prev) => ({ ...prev, traffic_density: e.target.value }))}
-                  className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2.5 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 shadow-sm"
                 >
-                  <option value="Low">Light Flow</option>
+                  <option value="Low">Light Flow (Off-Peak Speed)</option>
                   <option value="Medium">Moderate Density</option>
                   <option value="High">Rush Hour Congestion</option>
                 </select>
@@ -778,7 +894,7 @@ export const OverviewPage: React.FC = () => {
                       : 'bg-slate-50 border-slate-200 text-slate-600'
                   }`}
                 >
-                  {form.traffic_signal ? '🟢 Signalized' : '⚪ Unsignalized'}
+                  {form.traffic_signal ? '🟢 Signalized Junctions' : '⚪ Uncontrolled / No Signals'}
                 </button>
               </div>
             </div>
