@@ -301,6 +301,7 @@ export interface PredictRequest {
   vehicle_type?: string;
   source?: string;
   destination?: string;
+  date?: string;
   is_divided_carriageway?: boolean;
   cruising_speed_kmh?: number;
 }

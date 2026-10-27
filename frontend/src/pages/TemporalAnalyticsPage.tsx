@@ -50,10 +50,12 @@ export const TemporalAnalyticsPage: React.FC = () => {
     );
   }
 
-  const peakWindow = data.diurnal_hourly.reduce(
-    (max, cur) => (cur.total > max.total ? cur : max),
-    data.diurnal_hourly[0]
-  );
+  const peakWindow = data?.diurnal_hourly && data.diurnal_hourly.length > 0
+    ? data.diurnal_hourly.reduce(
+        (max, cur) => (cur.total > max.total ? cur : max),
+        data.diurnal_hourly[0]
+      )
+    : { hour: 18, total: 0, fatal: 0 };
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">

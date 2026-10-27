@@ -137,4 +137,39 @@ export const getMorthSummary = async (): Promise<MorthNationalSummary> => {
   return data;
 };
 
+export interface WeatherForecastResponse {
+  status: string;
+  source: string;
+  api_key_status: string;
+  api_key_configured: boolean;
+  city: string;
+  date: string;
+  hour: number;
+  condition: 'Clear' | 'Rainy' | 'Foggy';
+  weather: 'Clear' | 'Rainy' | 'Foggy';
+  description: string;
+  temperature_c: number;
+  temperature: number;
+  visibility_km: number;
+  visibility: number;
+  humidity_pct?: number;
+  wind_speed_kmh?: number;
+  surface_condition: string;
+  road_friction_standard: string;
+  traction_level: string;
+  is_real_forecast: boolean;
+  disclaimer: string;
+}
+
+export const getWeatherForecast = async (params: {
+  city?: string;
+  date?: string;
+  hour?: number;
+  lat?: number;
+  lon?: number;
+}): Promise<WeatherForecastResponse> => {
+  const { data } = await api.get('/weather/forecast', { params });
+  return data;
+};
+
 export default api;

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AccidentGeoPoint, HotspotItem } from '../../types/api';
 import { useGoogleMaps } from '../../utils/googleMapsLoader';
-import { CITY_COORDINATES, DEFAULT_MAP_CENTER, CLEAN_LIGHT_MAP_STYLES } from '../../config/maps';
+import { CITY_COORDINATES, DEFAULT_MAP_CENTER, CLEAN_LIGHT_MAP_STYLES, lookupCoordinatesAsync } from '../../config/maps';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 
 export interface RouteSummary {
@@ -79,16 +79,9 @@ export const GoogleAccidentMap: React.FC<GoogleAccidentMapProps> = ({
       zoom: isNational ? 5 : (cityMeta.zoom || 11),
       styles: CLEAN_LIGHT_MAP_STYLES,
       mapTypeControl: true,
-      mapTypeControlOptions: {
-        style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-        position: google.maps.ControlPosition.TOP_RIGHT,
-      },
       streetViewControl: false,
       fullscreenControl: true,
       zoomControl: true,
-      zoomControlOptions: {
-        position: google.maps.ControlPosition.RIGHT_CENTER,
-      },
     });
 
     infoWindowRef.current = new google.maps.InfoWindow();
@@ -134,7 +127,7 @@ export const GoogleAccidentMap: React.FC<GoogleAccidentMapProps> = ({
     const src = source?.trim() || city?.trim();
     const dst = destination?.trim();
 
-    // Clear previous fallback polyline & endpoint markers
+    // Clear previous polyline & endpoint markers
     if (fallbackPolylineRef.current) {
       fallbackPolylineRef.current.setMap(null);
       fallbackPolylineRef.current = null;
@@ -149,7 +142,79 @@ export const GoogleAccidentMap: React.FC<GoogleAccidentMapProps> = ({
       return;
     }
 
-    const directionsService = new google.maps.DirectionsService();
+    let isCurrentRequest = true;
+
+    // Helper to draw custom polyline and endpoints
+    const drawCustomRoute = (
+      pathCoords: google.maps.LatLng[],
+      startCoord: { lat: number; lng: number },
+      endCoord: { lat: number; lng: number },
+      distKmStr: string,
+      durStr: string
+    ) => {
+      if (!isCurrentRequest) return;
+
+      if (fallbackPolylineRef.current) {
+        fallbackPolylineRef.current.setMap(null);
+      }
+      endpointMarkersRef.current.forEach((m) => m.setMap(null));
+      endpointMarkersRef.current = [];
+
+      const poly = new google.maps.Polyline({
+        path: pathCoords,
+        geodesic: true,
+        strokeColor: '#2563EB',
+        strokeOpacity: 0.9,
+        strokeWeight: 6,
+        map,
+      });
+      fallbackPolylineRef.current = poly;
+
+      const bounds = new google.maps.LatLngBounds();
+      pathCoords.forEach((pt) => bounds.extend(pt));
+
+      // Origin Pin 'A' (Emerald)
+      const startMarker = new google.maps.Marker({
+        position: startCoord,
+        map,
+        title: `Origin: ${src}`,
+        label: { text: 'A', color: '#FFFFFF', fontWeight: 'bold' },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 13,
+          fillColor: '#10B981',
+          fillOpacity: 1,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 2.5,
+        },
+      });
+
+      // Destination Pin 'B' (Crimson)
+      const endMarker = new google.maps.Marker({
+        position: endCoord,
+        map,
+        title: `Destination: ${dst}`,
+        label: { text: 'B', color: '#FFFFFF', fontWeight: 'bold' },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 13,
+          fillColor: '#DC2626',
+          fillOpacity: 1,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 2.5,
+        },
+      });
+
+      endpointMarkersRef.current = [startMarker, endMarker];
+      map.fitBounds(bounds, { top: 70, right: 70, bottom: 70, left: 70 });
+
+      if (onRouteCalculated) {
+        onRouteCalculated({
+          distance: distKmStr,
+          duration: durStr,
+        });
+      }
+    };
 
     // Geodesic fallback helper
     const drawFallbackRoute = (
@@ -165,98 +230,57 @@ export const GoogleAccidentMap: React.FC<GoogleAccidentMapProps> = ({
           Math.cos((p2.lat * Math.PI) / 180) *
           Math.sin(dLon / 2) *
           Math.sin(dLon / 2);
-      const straightKm = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-      const roadKm = Math.round(straightKm * 1.25);
+      const straightKm = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a))));
+      const roadKm = Math.round(straightKm * 1.28);
       const hours = Math.floor(roadKm / 65);
       const mins = Math.round(((roadKm / 65) - hours) * 60);
 
       const pathCoords = [new google.maps.LatLng(p1.lat, p1.lng), new google.maps.LatLng(p2.lat, p2.lng)];
-      const poly = new google.maps.Polyline({
-        path: pathCoords,
-        geodesic: true,
-        strokeColor: '#2563EB',
-        strokeOpacity: 0.85,
-        strokeWeight: 5,
-        map,
-      });
-      fallbackPolylineRef.current = poly;
-
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(p1);
-      bounds.extend(p2);
-      map.fitBounds(bounds, { top: 70, right: 70, bottom: 70, left: 70 });
-
-      // Origin Marker 'A'
-      const startM = new google.maps.Marker({
-        position: p1,
-        map,
-        title: `Origin: ${src}`,
-        label: { text: 'A', color: '#FFFFFF', fontWeight: 'bold' },
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 13,
-          fillColor: '#10B981',
-          fillOpacity: 1,
-          strokeColor: '#FFFFFF',
-          strokeWeight: 2,
-        },
-      });
-
-      // Destination Marker 'B'
-      const endM = new google.maps.Marker({
-        position: p2,
-        map,
-        title: `Destination: ${dst}`,
-        label: { text: 'B', color: '#FFFFFF', fontWeight: 'bold' },
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 13,
-          fillColor: '#DC2626',
-          fillOpacity: 1,
-          strokeColor: '#FFFFFF',
-          strokeWeight: 2,
-        },
-      });
-
-      endpointMarkersRef.current = [startM, endM];
-
-      if (onRouteCalculated) {
-        onRouteCalculated({
-          distance: `~${roadKm} km`,
-          duration: hours > 0 ? `~${hours}h ${mins}m` : `~${mins} mins`,
-        });
-      }
+      drawCustomRoute(
+        pathCoords,
+        p1,
+        p2,
+        `${roadKm} km`,
+        hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`
+      );
     };
 
-    directionsService.route(
-      {
-        origin: `${src}, India`,
-        destination: `${dst}, India`,
-        travelMode: google.maps.TravelMode.DRIVING,
-        provideRouteAlternatives: false,
-      },
-      (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK && result) {
-          if (directionsRendererRef.current) {
-            directionsRendererRef.current.setDirections(result);
-          }
-          const leg = result.routes[0]?.legs[0];
-          if (leg && onRouteCalculated) {
-            onRouteCalculated({
-              distance: leg.distance?.text || '',
-              duration: leg.duration?.text || '',
-            });
-          }
-        } else {
-          // Fallback to coordinates
-          const c1 = resolveCityCoords(src);
-          const c2 = resolveCityCoords(dst);
-          if (c1 && c2) {
-            drawFallbackRoute(c1, c2);
-          }
-        }
+    // Universal coordinate resolution and OSRM turn-by-turn driving routing
+    Promise.all([lookupCoordinatesAsync(src), lookupCoordinatesAsync(dst)]).then(
+      ([startPt, endPt]) => {
+        if (!isCurrentRequest) return;
+        if (!startPt || !endPt) return;
+
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt.lng},${startPt.lat};${endPt.lng},${endPt.lat}?overview=full&geometries=geojson`;
+
+        fetch(osrmUrl)
+          .then((r) => r.json())
+          .then((data) => {
+            if (!isCurrentRequest) return;
+            if (data.code === 'Ok' && data.routes && data.routes[0]?.geometry?.coordinates) {
+              const rawCoords: [number, number][] = data.routes[0].geometry.coordinates;
+              const gPath = rawCoords.map((c) => new google.maps.LatLng(c[1], c[0]));
+              const distKm = Math.round(data.routes[0].distance / 1000);
+              const durSec = data.routes[0].duration;
+              const hours = Math.floor(durSec / 3600);
+              const mins = Math.round((durSec % 3600) / 60);
+              const durStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
+
+              drawCustomRoute(gPath, startPt, endPt, `${distKm} km`, durStr);
+            } else {
+              throw new Error('OSRM empty coordinates');
+            }
+          })
+          .catch(() => {
+            if (!isCurrentRequest) return;
+            drawFallbackRoute(startPt, endPt);
+          });
       }
     );
+
+    return () => {
+      isCurrentRequest = false;
+    };
   }, [source, destination, city, isLoaded]);
 
   // 4. Plot Hotspot Clusters & Selected Focus Boundary

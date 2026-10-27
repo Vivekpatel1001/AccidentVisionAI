@@ -65,16 +65,9 @@ export const GoogleHotspotsMap: React.FC<GoogleHotspotsMapProps> = ({
       zoom: initialZoom,
       styles: CLEAN_LIGHT_MAP_STYLES,
       mapTypeControl: true,
-      mapTypeControlOptions: {
-        style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-        position: google.maps.ControlPosition.TOP_RIGHT,
-      },
       streetViewControl: false,
       fullscreenControl: true,
       zoomControl: true,
-      zoomControlOptions: {
-        position: google.maps.ControlPosition.RIGHT_CENTER,
-      },
     });
 
     infoWindowRef.current = new google.maps.InfoWindow();

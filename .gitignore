@@ -24,10 +24,13 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual environments
+# Virtual environments & local environment secrets
 venv/
 env/
 ENV/
+.env
+.env.local
+.env.*.local
 
 # IDE & Editor settings
 .idea/
@@ -51,6 +54,9 @@ Data/Weather/*.grib
 Data/Weather/*.idx
 Data/Road/*.osm.pbf
 *.joblib
+!Models/route_hazard_xgb_v1/*.joblib
+!Models/severity_best_v1/*.joblib
+!Models/severity_xgboost_v1/*.joblib
 
 # Frontend artifacts
 frontend/node_modules/

@@ -18,25 +18,22 @@ import { useCityFilter } from '../context/CityContext';
 import { HotspotItem, AccidentGeoPoint } from '../types/api';
 import { GoogleHotspotsMap } from '../components/map/GoogleHotspotsMap';
 import { SearchableDropdown } from '../components/common/SearchableDropdown';
+import { CITY_COORDINATES } from '../config/maps';
 
 const ALL_CITIES = [
   'All Cities (National)',
-  'Agra', 'Ahmedabad', 'Ajmer', 'Alibaug', 'Amritsar', 'Asansol', 'Aurangabad',
-  'Ayodhya', 'Bengaluru', 'Bhopal', 'Bhubaneswar', 'Bikaner', 'Chandigarh',
-  'Chennai', 'Coimbatore', 'Cuttack', 'Dehradun', 'Delhi', 'Dhanbad', 'Dombivli',
-  'Durgapur', 'Electronic City', 'Faridabad', 'Ghaziabad', 'Goa', 'Gorakhpur',
-  'Gurgaon', 'Guwahati', 'Gwalior', 'Haridwar', 'Hinjewadi IT Hub', 'Howrah',
-  'Hyderabad', 'Indore', 'Jabalpur', 'Jaipur', 'Jaisalmer', 'Jalandhar',
-  'Jammu', 'Jodhpur', 'Kalyan', 'Kanpur', 'Khandala', 'Kochi', 'Kodaikanal',
-  'Kolhapur', 'Kolkata', 'Kota', 'Lonavala', 'Lucknow', 'Ludhiana', 'Madurai',
-  'Mahabaleshwar', 'Manali', 'Mangalore', 'Mathura', 'Meerut', 'Mount Abu',
-  'Mumbai', 'Mysore', 'Nagpur', 'Nashik', 'Navi Mumbai', 'Noida', 'OMR Corridor',
-  'Ooty', 'Panaji', 'Panvel', 'Patna', 'Pondicherry', 'Prayagraj', 'Pune',
-  'Puri', 'Pushkar', 'Raipur', 'Rajkot', 'Ranchi', 'Rishikesh', 'Satara',
-  'Shillong', 'Shimla', 'Shirdi', 'Siliguri', 'Solapur', 'Sriperumbudur',
-  'Srinagar', 'Surat', 'Thane', 'Thiruvananthapuram', 'Tirupati', 'Udaipur',
-  'Udupi', 'Vadodara', 'Varanasi', 'Vasai', 'Vijayawada', 'Virar', 'Visakhapatnam',
-  'Vrindavan', 'Warangal', 'Whitefield'
+  ...Array.from(
+    new Set([
+      ...Object.keys(CITY_COORDINATES),
+      'Electronic City', 'Hinjewadi IT Hub', 'OMR Corridor', 'Sriperumbudur', 'Whitefield',
+      'Panvel', 'Vasai', 'Virar', 'Dombivli', 'Kalyan', 'Khandala', 'Lonavala', 'Mahabaleshwar',
+      'Panchgani', 'Shirdi', 'Matheran', 'Karjat', 'Alibaug', 'Chiplun', 'Ratnagiri', 'Kolhapur',
+      'Satara', 'Sangli', 'Solapur', 'Ahmednagar', 'Jalgaon', 'Dhule', 'Nanded', 'Latur',
+      'Sindhudurg', 'Sawantwadi', 'Malvan', 'Kankavli', 'Udaipur', 'Shimla', 'Manali',
+      'Dharamshala', 'Haridwar', 'Rishikesh', 'Mussoorie', 'Nainital', 'Dehradun',
+      'Kochi', 'Munnar', 'Wayanad', 'Ooty', 'Kodaikanal'
+    ])
+  ).sort((a, b) => a.localeCompare(b))
 ];
 
 export const HotspotsPage: React.FC = () => {

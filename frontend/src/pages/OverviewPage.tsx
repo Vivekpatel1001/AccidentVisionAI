@@ -32,11 +32,12 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react';
-import { predictSeverity, getOverview, getGeoAccidents, getHotspots } from '../services/api';
+import { predictSeverity, getOverview, getGeoAccidents, getHotspots, getWeatherForecast, WeatherForecastResponse } from '../services/api';
 import { PredictRequest, PredictResponse, AccidentGeoPoint, HotspotItem } from '../types/api';
 import { useCityFilter } from '../context/CityContext';
 import { SearchableDropdown } from '../components/common/SearchableDropdown';
 import { deriveMeteorologicalForecast, MeteorologicalForecast } from '../utils/weatherIntelligence';
+import { CITY_COORDINATES } from '../config/maps';
 
 const CITIES = [
   'Mumbai',
@@ -49,24 +50,18 @@ const CITIES = [
   'Chandigarh',
 ];
 
-const ALL_DESTINATIONS = [
-  'Agra', 'Ahmedabad', 'Ajmer', 'Alibaug', 'Amritsar', 'Asansol', 'Aurangabad',
-  'Ayodhya', 'Bengaluru', 'Bhopal', 'Bhubaneswar', 'Bikaner', 'Chandigarh',
-  'Chennai', 'Coimbatore', 'Cuttack', 'Dehradun', 'Delhi', 'Dhanbad', 'Dombivli',
-  'Durgapur', 'Electronic City', 'Faridabad', 'Ghaziabad', 'Goa', 'Gorakhpur',
-  'Gurgaon', 'Guwahati', 'Gwalior', 'Haridwar', 'Hinjewadi IT Hub', 'Howrah',
-  'Hyderabad', 'Indore', 'Jabalpur', 'Jaipur', 'Jaisalmer', 'Jalandhar',
-  'Jammu', 'Jodhpur', 'Kalyan', 'Kanpur', 'Khandala', 'Kochi', 'Kodaikanal',
-  'Kolhapur', 'Kolkata', 'Kota', 'Lonavala', 'Lucknow', 'Ludhiana', 'Madurai',
-  'Mahabaleshwar', 'Manali', 'Mangalore', 'Mathura', 'Meerut', 'Mount Abu',
-  'Mumbai', 'Mysore', 'Nagpur', 'Nashik', 'Navi Mumbai', 'Noida', 'OMR Corridor',
-  'Ooty', 'Panaji', 'Panvel', 'Patna', 'Pondicherry', 'Prayagraj', 'Pune',
-  'Puri', 'Pushkar', 'Raipur', 'Rajkot', 'Ranchi', 'Rishikesh', 'Satara',
-  'Shillong', 'Shimla', 'Shirdi', 'Siliguri', 'Solapur', 'Sriperumbudur',
-  'Srinagar', 'Surat', 'Thane', 'Thiruvananthapuram', 'Tirupati', 'Udaipur',
-  'Udupi', 'Vadodara', 'Varanasi', 'Vasai', 'Vijayawada', 'Virar', 'Visakhapatnam',
-  'Vrindavan', 'Warangal', 'Whitefield'
-];
+const ALL_DESTINATIONS = Array.from(
+  new Set([
+    ...Object.keys(CITY_COORDINATES),
+    'Electronic City', 'Hinjewadi IT Hub', 'OMR Corridor', 'Sriperumbudur', 'Whitefield',
+    'Panvel', 'Vasai', 'Virar', 'Dombivli', 'Kalyan', 'Khandala', 'Lonavala', 'Mahabaleshwar',
+    'Panchgani', 'Shirdi', 'Matheran', 'Karjat', 'Alibaug', 'Chiplun', 'Ratnagiri', 'Kolhapur',
+    'Satara', 'Sangli', 'Solapur', 'Ahmednagar', 'Jalgaon', 'Dhule', 'Nanded', 'Latur',
+    'Sindhudurg', 'Sawantwadi', 'Malvan', 'Kankavli', 'Udaipur', 'Shimla', 'Manali',
+    'Dharamshala', 'Haridwar', 'Rishikesh', 'Mussoorie', 'Nainital', 'Dehradun',
+    'Kochi', 'Munnar', 'Wayanad', 'Ooty', 'Kodaikanal'
+  ])
+).sort((a, b) => a.localeCompare(b));
 
 const POPULAR_CORRIDORS = [
   { source: 'Mumbai', destination: 'Pune', roadType: 'Highway', label: 'Mumbai ➔ Pune' },
@@ -131,6 +126,7 @@ export const OverviewPage: React.FC = () => {
   const [selectedMapPoint, setSelectedMapPoint] = useState<AccidentGeoPoint | null>(null);
   const [selectedHotspot, setSelectedHotspot] = useState<HotspotItem | null>(null);
   const [routeSummary, setRouteSummary] = useState<RouteSummary | null>(null);
+  const [isRouteCalculating, setIsRouteCalculating] = useState<boolean>(false);
 
   // Today's date in YYYY-MM-DD
   const todayIso = new Date().toISOString().split('T')[0];
@@ -141,10 +137,25 @@ export const OverviewPage: React.FC = () => {
   const [travelDate, setTravelDate] = useState<string>(todayIso);
   const [isCustomWeatherOverride, setIsCustomWeatherOverride] = useState<boolean>(false);
 
-  // Synchronize automated weather & road surface whenever travel date, hour, or corridor location changes
+  // Query live weather forecast from OpenWeather API service based on date & hour
+  const { data: openWeatherData, isFetching: isWeatherLoading } = useQuery({
+    queryKey: ['openweather-forecast', form.source || form.city, travelDate, form.hour],
+    queryFn: () => getWeatherForecast({
+      city: form.source || form.city,
+      date: travelDate,
+      hour: form.hour
+    }),
+    staleTime: 60000,
+  });
+
+  // Synchronize OpenWeather live data & road surface whenever travel date, hour, or corridor location changes
   useEffect(() => {
     if (isCustomWeatherOverride) return;
     const derived = deriveMeteorologicalForecast(travelDate, form.hour, form.source || form.city);
+    const weatherVal = openWeatherData?.weather || derived.weather;
+    const tempVal = openWeatherData?.temperature_c ?? derived.temperature;
+    const visVal = openWeatherData?.visibility_km ?? derived.visibility;
+
     const d = new Date(travelDate);
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayOfWeek = dayNames[d.getDay()] || 'Friday';
@@ -152,15 +163,16 @@ export const OverviewPage: React.FC = () => {
 
     setForm((prev) => ({
       ...prev,
-      weather: derived.weather,
-      temperature: derived.temperature,
-      visibility: derived.visibility,
+      date: travelDate,
+      weather: weatherVal,
+      temperature: tempVal,
+      visibility: visVal,
       traffic_density: derived.trafficDensity,
       day_of_week: dayOfWeek,
       is_weekend: isWeekend,
       is_peak_hour: derived.trafficDensity === 'High',
     }));
-  }, [travelDate, form.hour, form.source, form.city, isCustomWeatherOverride]);
+  }, [openWeatherData, travelDate, form.hour, form.source, form.city, isCustomWeatherOverride]);
 
   const handleDateChange = (val: string) => {
     setTravelDate(val);
@@ -254,6 +266,7 @@ export const OverviewPage: React.FC = () => {
     form.traffic_density,
     form.traffic_signal,
     form.lanes,
+    travelDate,
   ]);
 
   const handleCalculate = (e?: React.FormEvent) => {
@@ -266,6 +279,8 @@ export const OverviewPage: React.FC = () => {
 
   const handleSourceChange = (srcVal: string) => {
     setSelectedCity(srcVal);
+    setRouteSummary(null);
+    setIsRouteCalculating(true);
     setForm((prev) => ({
       ...prev,
       city: srcVal,
@@ -274,6 +289,8 @@ export const OverviewPage: React.FC = () => {
   };
 
   const handleDestinationChange = (dstVal: string) => {
+    setRouteSummary(null);
+    setIsRouteCalculating(true);
     setForm((prev) => ({
       ...prev,
       destination: dstVal,
@@ -283,6 +300,8 @@ export const OverviewPage: React.FC = () => {
   const handleSwapRoute = () => {
     const oldSource = form.source || form.city;
     const oldDest = form.destination || 'Pune';
+    setRouteSummary(null);
+    setIsRouteCalculating(true);
     setForm((prev) => ({
       ...prev,
       source: oldDest,
@@ -294,6 +313,8 @@ export const OverviewPage: React.FC = () => {
 
   const handleCorridorPreset = (corridor: typeof POPULAR_CORRIDORS[0]) => {
     setSelectedCity(corridor.source);
+    setRouteSummary(null);
+    setIsRouteCalculating(true);
     setForm((prev) => ({
       ...prev,
       city: corridor.source,
@@ -765,7 +786,7 @@ export const OverviewPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Automated Meteorological & Road Surface Intelligence Indicator */}
+            {/* OpenWeather Live Meteorological & Road Surface Intelligence Indicator */}
             <div className="bg-white border border-blue-100 rounded-xl p-3.5 shadow-xs space-y-2">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
@@ -774,13 +795,14 @@ export const OverviewPage: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs font-extrabold text-slate-900 flex items-center gap-2">
-                      <span>Automated Weather & Road Surface Prediction</span>
-                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        Auto-Derived from Travel Date
+                      <span>OpenWeather Live Forecast & Road Surface</span>
+                      <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        {openWeatherData?.source || 'OpenWeather API (Live)'}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500">
-                      Synchronized with seasonal corridor telemetry for {form.source || form.city} on {new Date(travelDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      Live data fetched for {form.source || form.city} on {new Date(travelDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {form.hour.toString().padStart(2, '0')}:00 HRS • Live Meteorological Radar
                     </p>
                   </div>
                 </div>
@@ -790,7 +812,7 @@ export const OverviewPage: React.FC = () => {
                   onClick={() => setIsCustomWeatherOverride(!isCustomWeatherOverride)}
                   className="text-[11px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-2"
                 >
-                  {isCustomWeatherOverride ? 'Reset to Auto-Detection' : 'Manual Weather Simulation (Optional)'}
+                  {isCustomWeatherOverride ? 'Reset to OpenWeather Auto-Detection' : 'Manual Weather Simulation (Optional)'}
                 </button>
               </div>
 
@@ -798,10 +820,12 @@ export const OverviewPage: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
                 <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                    {currentForecast.weather === 'Rainy' ? <CloudRain className="w-3 h-3 text-blue-600" /> : currentForecast.weather === 'Foggy' ? <CloudFog className="w-3 h-3 text-slate-600" /> : <Sun className="w-3 h-3 text-amber-500" />}
+                    {form.weather === 'Rainy' ? <CloudRain className="w-3 h-3 text-blue-600" /> : form.weather === 'Foggy' ? <CloudFog className="w-3 h-3 text-slate-600" /> : <Sun className="w-3 h-3 text-amber-500" />}
                     <span>Atmosphere</span>
                   </div>
-                  <div className="font-bold text-slate-900 mt-0.5 truncate">{form.weather} Skies</div>
+                  <div className="font-bold text-slate-900 mt-0.5 truncate">
+                    {form.weather} ({openWeatherData?.description || 'Clear sky'})
+                  </div>
                 </div>
 
                 <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
@@ -825,13 +849,19 @@ export const OverviewPage: React.FC = () => {
                     <Navigation className="w-3 h-3 text-emerald-600" />
                     <span>Road Friction</span>
                   </div>
-                  <div className="font-bold text-slate-900 mt-0.5 truncate text-[11px]">{currentForecast.surfaceCondition}</div>
+                  <div className="font-bold text-slate-900 mt-0.5 truncate text-[11px]">
+                    {openWeatherData?.surface_condition || currentForecast.surfaceCondition}
+                  </div>
                 </div>
               </div>
 
               <div className="text-[11px] text-slate-600 bg-slate-50/60 rounded-md p-2 border border-slate-100 flex items-start gap-1.5">
                 <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                <span>{currentForecast.summary}</span>
+                <span>
+                  {openWeatherData?.disclaimer || currentForecast.summary}
+                  {" • "}
+                  Traction status: <strong className="text-slate-800">{openWeatherData?.traction_level || currentForecast.roadFrictionStandard}</strong>
+                </span>
               </div>
 
               {/* Optional Manual Weather Override */}
@@ -948,9 +978,17 @@ export const OverviewPage: React.FC = () => {
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Trip Safety Score
                 </span>
-                <span className={`text-[11px] font-extrabold px-3 py-1 rounded-full ${riskInfo.bg} ${riskInfo.color} border ${riskInfo.border}`}>
-                  {riskInfo.badge}
-                </span>
+                <div className="flex items-center gap-2">
+                  {mutation.isPending && (
+                    <span className="text-[10px] text-blue-600 font-bold animate-pulse flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" />
+                      Updating...
+                    </span>
+                  )}
+                  <span className={`text-[11px] font-extrabold px-3 py-1 rounded-full ${riskInfo.bg} ${riskInfo.color} border ${riskInfo.border}`}>
+                    {riskInfo.badge}
+                  </span>
+                </div>
               </div>
 
               {/* Radial Score Gauge */}
@@ -972,7 +1010,9 @@ export const OverviewPage: React.FC = () => {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-4xl font-extrabold text-slate-900 tracking-tight">{safetyScore}</span>
+                    <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
+                      {mutation.isPending ? '...' : safetyScore}
+                    </span>
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">/ 100 Safety</span>
                   </div>
                 </div>
@@ -1195,30 +1235,53 @@ export const OverviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Route Telemetry Banner */}
-        {routeSummary && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+        {/* Route Telemetry & Journey Traversal Banner */}
+        {(isRouteCalculating || routeSummary) && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 border border-blue-200/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
             <div className="flex items-center gap-2 font-bold text-blue-900">
               <Navigation className="w-4 h-4 text-blue-600 shrink-0" />
               <span>
-                Active Corridor: <strong>{form.source}</strong> to <strong>{form.destination}</strong>
+                Active Corridor: <strong>{form.source || form.city}</strong> ➔ <strong>{form.destination}</strong>
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-blue-800 font-semibold text-[11px]">
-              {routeSummary.distance && (
+
+            {isRouteCalculating ? (
+              <div className="flex items-center gap-2 text-blue-700 font-semibold text-[11px] animate-pulse">
+                <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span>Computing highway route geometry, live friction & traversal schedule...</span>
+              </div>
+            ) : routeSummary ? (
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-blue-900 font-semibold text-[11px]">
+                {routeSummary.distance && (
+                  <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs flex items-center gap-1.5">
+                    <span className="text-blue-500 font-normal">Distance:</span>
+                    <strong>{routeSummary.distance}</strong>
+                  </span>
+                )}
+                {routeSummary.duration && (
+                  <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs flex items-center gap-1.5">
+                    <span className="text-blue-500 font-normal">Est. Drive Time:</span>
+                    <strong className="text-blue-700">{routeSummary.duration}</strong>
+                  </span>
+                )}
+                {routeSummary.departureTime && routeSummary.arrivalTime && (
+                  <span className="bg-white px-2.5 py-1 rounded-md border border-indigo-200 shadow-xs flex items-center gap-1.5">
+                    <Clock className="w-3 h-3 text-indigo-600 shrink-0" />
+                    <span className="text-indigo-900">
+                      Dep: <strong>{routeSummary.departureTime}</strong> ➔ Arr: <strong className="text-indigo-700">{routeSummary.arrivalTime}</strong>
+                    </span>
+                  </span>
+                )}
+                {routeSummary.trafficDelayText && (
+                  <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs text-slate-700 text-[10px]">
+                    🚦 {routeSummary.trafficDelayText}
+                  </span>
+                )}
                 <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs">
-                  📏 Distance: <strong>{routeSummary.distance}</strong>
+                  🚗 Road: <strong>{form.road_type}</strong>
                 </span>
-              )}
-              {routeSummary.duration && (
-                <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs">
-                  ⏱️ Est. Drive Time: <strong>{routeSummary.duration}</strong>
-                </span>
-              )}
-              <span className="bg-white px-2.5 py-1 rounded-md border border-blue-200 shadow-xs">
-                🚗 Classification: <strong>{form.road_type}</strong>
-              </span>
-            </div>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -1233,10 +1296,17 @@ export const OverviewPage: React.FC = () => {
             source={form.source}
             destination={form.destination}
             roadType="All"
+            departureHour={form.hour}
+            travelDate={travelDate}
+            trafficDensity={form.traffic_density}
             isLoading={isMapLoading || isHotspotsLoading}
             onSelectPoint={handleSelectCrashPoint}
             onSelectHotspot={handleSelectHotspot}
-            onRouteCalculated={setRouteSummary}
+            onRouteCalculating={() => setIsRouteCalculating(true)}
+            onRouteCalculated={(summary) => {
+              setRouteSummary(summary);
+              setIsRouteCalculating(false);
+            }}
           />
 
           {/* Floating Points Count Pill */}

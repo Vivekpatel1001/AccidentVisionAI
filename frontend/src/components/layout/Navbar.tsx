@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { getMetadata } from '../../services/api';
 import { useCityFilter } from '../../context/CityContext';
+import { CITY_COORDINATES } from '../../config/maps';
 
 interface NavItem {
   name: string;
@@ -72,16 +73,18 @@ export const Navbar: React.FC = () => {
     staleTime: 60000,
   });
 
-  const cityList = metadata?.cities || [
-    'Mumbai',
-    'Delhi',
-    'Bengaluru',
-    'Chennai',
-    'Pune',
-    'Hyderabad',
-    'Kolkata',
-    'Chandigarh',
-  ];
+  const cityList = Array.from(
+    new Set([
+      'Mumbai', 'Delhi', 'Bengaluru', 'Chennai', 'Pune', 'Hyderabad', 'Kolkata', 'Chandigarh',
+      'Ahmedabad', 'Jaipur', 'Lucknow', 'Surat', 'Nagpur', 'Indore', 'Bhopal', 'Visakhapatnam',
+      'Patna', 'Vadodara', 'Ludhiana', 'Agra', 'Nashik', 'Varanasi', 'Srinagar', 'Aurangabad',
+      'Amritsar', 'Prayagraj', 'Ranchi', 'Coimbatore', 'Gwalior', 'Vijayawada', 'Jodhpur',
+      'Madurai', 'Raipur', 'Kota', 'Guwahati', 'Solapur', 'Mysore', 'Gurgaon', 'Noida',
+      'Kolhapur', 'Ratnagiri', 'Chiplun', 'Udaipur', 'Shimla', 'Manali', 'Kochi', 'Goa',
+      ...(metadata?.cities || []),
+      ...Object.keys(CITY_COORDINATES),
+    ])
+  ).sort((a, b) => a.localeCompare(b));
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-sm">

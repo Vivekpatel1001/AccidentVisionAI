@@ -1,12 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccidentGeoPoint, HotspotItem } from '../../types/api';
 import { useGoogleMaps } from '../../utils/googleMapsLoader';
-import { CITY_COORDINATES, DEFAULT_MAP_CENTER, CLEAN_LIGHT_MAP_STYLES } from '../../config/maps';
+import { CITY_COORDINATES, DEFAULT_MAP_CENTER, CLEAN_LIGHT_MAP_STYLES, lookupCoordinatesAsync } from '../../config/maps';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 
 export interface RouteSummary {
   distance: string;
   duration: string;
+  distanceKm?: number;
+  durationMinutes?: number;
+  departureTime?: string;
+  arrivalTime?: string;
+  trafficDelayText?: string;
   startAddress?: string;
   endAddress?: string;
 }
@@ -21,8 +26,12 @@ interface GoogleOverviewMapProps {
   isLoading?: boolean;
   selectedHotspot?: HotspotItem | null;
   selectedPoint?: AccidentGeoPoint | null;
+  departureHour?: number;
+  travelDate?: string;
+  trafficDensity?: string;
   onSelectHotspot?: (h: HotspotItem) => void;
   onSelectPoint?: (pt: AccidentGeoPoint) => void;
+  onRouteCalculating?: () => void;
   onRouteCalculated?: (summary: RouteSummary) => void;
 }
 
@@ -36,8 +45,12 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
   isLoading = false,
   selectedHotspot,
   selectedPoint,
+  departureHour = 14,
+  travelDate,
+  trafficDensity = 'Medium',
   onSelectHotspot,
   onSelectPoint,
+  onRouteCalculating,
   onRouteCalculated,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -46,9 +59,16 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
   const hotspotMarkersRef = useRef<google.maps.Marker[]>([]);
   const hotspotCirclesRef = useRef<google.maps.Circle[]>([]);
   const endpointMarkersRef = useRef<google.maps.Marker[]>([]);
-  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const fallbackPolylineRef = useRef<google.maps.Polyline | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const cachedRouteRef = useRef<{
+    key: string;
+    pathCoords: google.maps.LatLng[];
+    startPt: { lat: number; lng: number };
+    endPt: { lat: number; lng: number };
+    distMeters: number;
+    durSec: number;
+  } | null>(null);
 
   const [showHotspots, setShowHotspots] = useState(true);
   const [showIncidents, setShowIncidents] = useState(true);
@@ -68,27 +88,6 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     return null;
   };
 
-  // Asynchronous geocoder for custom destinations or towns typed freely by the user
-  const resolveCoordsAsync = async (name?: string): Promise<{ lat: number; lng: number; zoom?: number } | null> => {
-    if (!name) return null;
-    const local = resolveCoords(name);
-    if (local) return local;
-
-    if (window.google?.maps?.Geocoder) {
-      try {
-        const geocoder = new google.maps.Geocoder();
-        const res = await geocoder.geocode({ address: `${name.trim()}, India` });
-        if (res.results && res.results[0]?.geometry?.location) {
-          const loc = res.results[0].geometry.location;
-          return { lat: loc.lat(), lng: loc.lng(), zoom: 12 };
-        }
-      } catch {
-        // Fallback silently if offline or geocoder service unavailable
-      }
-    }
-    return null;
-  };
-
   // Initialize Map
   useEffect(() => {
     if (!isLoaded || !mapContainerRef.current || mapInstanceRef.current) return;
@@ -100,31 +99,86 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
       zoom: (typeof cityMeta.zoom === 'number' ? cityMeta.zoom : 11),
       styles: CLEAN_LIGHT_MAP_STYLES,
       mapTypeControl: true,
-      mapTypeControlOptions: {
-        style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-        position: google.maps.ControlPosition.TOP_RIGHT,
-      },
       streetViewControl: false,
       fullscreenControl: true,
       zoomControl: true,
     });
 
     infoWindowRef.current = new google.maps.InfoWindow();
-
-    // Initialize custom DirectionsRenderer
-    const renderer = new google.maps.DirectionsRenderer({
-      map,
-      suppressMarkers: false,
-      polylineOptions: {
-        strokeColor: '#2563EB',
-        strokeOpacity: 0.9,
-        strokeWeight: 6,
-      },
-    });
-    directionsRendererRef.current = renderer;
-
     mapInstanceRef.current = map;
   }, [isLoaded]);
+
+  // Compute accurate travel timing, traffic congestion impact, and departure-to-arrival schedule
+  const computeJourneySchedule = (
+    distanceMeters: number,
+    durationSeconds: number,
+    depHour: number = 14,
+    trafficDensityStr: string = 'Medium'
+  ) => {
+    const distKm = Math.round(distanceMeters / 1000);
+    const baseMins = Math.round(durationSeconds / 60);
+
+    // Peak traffic detection: 8-11 AM and 17-20 PM
+    const isRushHour = (depHour >= 8 && depHour <= 11) || (depHour >= 17 && depHour <= 20);
+    const densityLower = trafficDensityStr?.toLowerCase() || 'medium';
+    const isHighTraffic = densityLower === 'high' || isRushHour;
+
+    let delayMins = 0;
+    let delayText = 'Free-flow traffic throughput';
+    if (isHighTraffic) {
+      delayMins = Math.max(12, Math.round(baseMins * 0.18));
+      delayText = `+${delayMins}m (Peak Traffic Delay)`;
+    } else if (densityLower === 'low') {
+      delayMins = 0;
+      delayText = 'Clear open highway conditions';
+    } else {
+      delayMins = Math.round(baseMins * 0.05);
+      delayText = delayMins > 0 ? `+${delayMins}m (Standard friction)` : 'Free-flow conditions';
+    }
+
+    const totalMins = Math.max(10, baseMins + delayMins);
+    const hours = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    const durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
+
+    // Calculate arrival window
+    const depTimeStr = `${depHour.toString().padStart(2, '0')}:00 HRS`;
+    const depTotalMins = depHour * 60;
+    const arrTotalMins = depTotalMins + totalMins;
+    const arrHour = Math.floor(arrTotalMins / 60) % 24;
+    const arrMin = arrTotalMins % 60;
+    const daysAdded = Math.floor(arrTotalMins / (24 * 60));
+    const arrTimeStr = `${arrHour.toString().padStart(2, '0')}:${arrMin.toString().padStart(2, '0')} HRS${daysAdded > 0 ? ' (+1 Day)' : ''}`;
+
+    return {
+      distKm,
+      durationText,
+      totalMins,
+      delayText,
+      depTimeStr,
+      arrTimeStr,
+    };
+  };
+
+  // Geodesic distance calculation fallback
+  const computeApproxRoute = (p1: { lat: number; lng: number }, p2: { lat: number; lng: number }) => {
+    const R = 6371;
+    const dLat = ((p2.lat - p1.lat) * Math.PI) / 180;
+    const dLon = ((p2.lng - p1.lng) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((p1.lat * Math.PI) / 180) *
+        Math.cos((p2.lat * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const straightKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+    const roadKm = Math.round(straightKm * 1.28);
+    const durSec = Math.round((roadKm / 65) * 3600);
+    return {
+      distanceMeters: roadKm * 1000,
+      durationSeconds: durSec,
+    };
+  };
 
   // Handle Turn-by-Turn Driving Route rendering between Source & Destination
   useEffect(() => {
@@ -134,7 +188,40 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     const src = source?.trim() || city?.trim();
     const dst = destination?.trim();
 
-    // Clear previous fallback polyline & custom endpoint markers
+    if (!src || !dst || src.toLowerCase() === dst.toLowerCase()) {
+      if (fallbackPolylineRef.current) {
+        fallbackPolylineRef.current.setMap(null);
+        fallbackPolylineRef.current = null;
+      }
+      endpointMarkersRef.current.forEach((m) => m.setMap(null));
+      endpointMarkersRef.current = [];
+      cachedRouteRef.current = null;
+      return;
+    }
+
+    const currentRouteKey = `${src.toLowerCase()}->${dst.toLowerCase()}`;
+
+    // Fast path: if the corridor route geometry is already loaded, update schedule instantly (0ms)
+    if (cachedRouteRef.current && cachedRouteRef.current.key === currentRouteKey) {
+      const cached = cachedRouteRef.current;
+      const schedule = computeJourneySchedule(cached.distMeters, cached.durSec, departureHour, trafficDensity);
+      if (onRouteCalculated) {
+        onRouteCalculated({
+          distance: `${schedule.distKm} km`,
+          duration: schedule.durationText,
+          distanceKm: schedule.distKm,
+          durationMinutes: schedule.totalMins,
+          departureTime: schedule.depTimeStr,
+          arrivalTime: schedule.arrTimeStr,
+          trafficDelayText: schedule.delayText,
+          startAddress: `${src}, India`,
+          endAddress: `${dst}, India`,
+        });
+      }
+      return;
+    }
+
+    // Clear previous polyline & markers for new corridor endpoints
     if (fallbackPolylineRef.current) {
       fallbackPolylineRef.current.setMap(null);
       fallbackPolylineRef.current = null;
@@ -142,45 +229,33 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
     endpointMarkersRef.current.forEach((m) => m.setMap(null));
     endpointMarkersRef.current = [];
 
-    if (!src || !dst || src.toLowerCase() === dst.toLowerCase()) {
-      if (directionsRendererRef.current) {
-        directionsRendererRef.current.set('directions', null);
-      }
-      return;
+    // Inform parent that new route is being calculated
+    if (onRouteCalculating) {
+      onRouteCalculating();
     }
 
-    const directionsService = new google.maps.DirectionsService();
-
-    // Helper to calculate geodesic distance & approximate driving time
-    const computeApproxRoute = (p1: { lat: number; lng: number }, p2: { lat: number; lng: number }) => {
-      const R = 6371;
-      const dLat = ((p2.lat - p1.lat) * Math.PI) / 180;
-      const dLon = ((p2.lng - p1.lng) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((p1.lat * Math.PI) / 180) *
-          Math.cos((p2.lat * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const straightKm = R * c;
-      const roadKm = Math.round(straightKm * 1.25);
-      const hours = Math.floor(roadKm / 65);
-      const mins = Math.round(((roadKm / 65) - hours) * 60);
-      return {
-        distanceText: `~${roadKm} km`,
-        durationText: hours > 0 ? `~${hours}h ${mins}m` : `~${mins} mins`,
-      };
-    };
+    let isCurrentRequest = true;
 
     // Helper to draw custom polyline and endpoints
     const drawCustomRoute = (
       pathCoords: google.maps.LatLng[],
       startCoord: { lat: number; lng: number },
       endCoord: { lat: number; lng: number },
-      distStr: string,
-      durStr: string
+      schedule: ReturnType<typeof computeJourneySchedule>,
+      distMeters: number,
+      durSec: number
     ) => {
+      if (!isCurrentRequest) return;
+
+      cachedRouteRef.current = {
+        key: currentRouteKey,
+        pathCoords,
+        startPt: startCoord,
+        endPt: endCoord,
+        distMeters,
+        durSec,
+      };
+
       if (fallbackPolylineRef.current) {
         fallbackPolylineRef.current.setMap(null);
       }
@@ -200,7 +275,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
       const bounds = new google.maps.LatLngBounds();
       pathCoords.forEach((pt) => bounds.extend(pt));
 
-      // Origin Pin 'A'
+      // Origin Pin 'A' (Emerald)
       const startMarker = new google.maps.Marker({
         position: startCoord,
         map,
@@ -216,7 +291,7 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
         },
       });
 
-      // Destination Pin 'B'
+      // Destination Pin 'B' (Blue)
       const endMarker = new google.maps.Marker({
         position: endCoord,
         map,
@@ -233,102 +308,65 @@ export const GoogleOverviewMap: React.FC<GoogleOverviewMapProps> = ({
       });
 
       endpointMarkersRef.current = [startMarker, endMarker];
-      map.fitBounds(bounds, 50);
+      map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
 
       if (onRouteCalculated) {
         onRouteCalculated({
-          distance: distStr,
-          duration: durStr,
+          distance: `${schedule.distKm} km`,
+          duration: schedule.durationText,
+          distanceKm: schedule.distKm,
+          durationMinutes: schedule.totalMins,
+          departureTime: schedule.depTimeStr,
+          arrivalTime: schedule.arrTimeStr,
+          trafficDelayText: schedule.delayText,
           startAddress: `${src}, India`,
           endAddress: `${dst}, India`,
         });
       }
     };
 
-    directionsService.route(
-      {
-        origin: `${src}, India`,
-        destination: `${dst}, India`,
-        travelMode: google.maps.TravelMode.DRIVING,
-        provideRouteAlternatives: false,
-      },
-      (response, status) => {
-        if (status === google.maps.DirectionsStatus.OK && response) {
-          directionsRendererRef.current?.setDirections(response);
+    // Universal resolution: check dictionary, backend, Open-Meteo
+    Promise.all([lookupCoordinatesAsync(src), lookupCoordinatesAsync(dst)]).then(
+      ([startPt, endPt]) => {
+        if (!isCurrentRequest) return;
+        if (!startPt || !endPt) return;
 
-          const leg = response.routes[0]?.legs[0];
-          if (leg && onRouteCalculated) {
-            onRouteCalculated({
-              distance: leg.distance?.text || '',
-              duration: leg.duration?.text || '',
-              startAddress: leg.start_address,
-              endAddress: leg.end_address,
-            });
-          }
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt.lng},${startPt.lat};${endPt.lng},${endPt.lat}?overview=full&geometries=geojson`;
 
-          const bounds = response.routes[0]?.bounds;
-          if (bounds) {
-            map.fitBounds(bounds);
-          }
-        } else {
-          // Fallback: Use open road routing engine (OSRM) or geodesic highway path
-          if (directionsRendererRef.current) {
-            directionsRendererRef.current.set('directions', null);
-          }
+        fetch(osrmUrl)
+          .then((r) => r.json())
+          .then((data) => {
+            if (!isCurrentRequest) return;
+            if (data.code === 'Ok' && data.routes && data.routes[0]?.geometry?.coordinates) {
+              const rawCoords: [number, number][] = data.routes[0].geometry.coordinates;
+              const gPath = rawCoords.map((c) => new google.maps.LatLng(c[1], c[0]));
+              const distMeters = data.routes[0].distance;
+              const durSec = data.routes[0].duration;
 
-          const proceedWithCoords = (
-            startPt: { lat: number; lng: number },
-            endPt: { lat: number; lng: number }
-          ) => {
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt.lng},${startPt.lat};${endPt.lng},${endPt.lat}?overview=full&geometries=geojson`;
-
-            fetch(osrmUrl)
-              .then((r) => r.json())
-              .then((data) => {
-                if (data.code === 'Ok' && data.routes && data.routes[0]?.geometry?.coordinates) {
-                  const rawCoords: [number, number][] = data.routes[0].geometry.coordinates;
-                  const gPath = rawCoords.map((c) => new google.maps.LatLng(c[1], c[0]));
-                  const distKm = (data.routes[0].distance / 1000).toFixed(0);
-                  const durSec = data.routes[0].duration;
-                  const hours = Math.floor(durSec / 3600);
-                  const mins = Math.round((durSec % 3600) / 60);
-                  const durStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} mins`;
-
-                  drawCustomRoute(gPath, startPt, endPt, `${distKm} km`, durStr);
-                } else {
-                  throw new Error('OSRM empty coordinates');
-                }
-              })
-              .catch(() => {
-                // Direct geodesic interpolation fallback
-                const approx = computeApproxRoute(startPt, endPt);
-                const straightPath = [
-                  new google.maps.LatLng(startPt.lat, startPt.lng),
-                  new google.maps.LatLng(endPt.lat, endPt.lng),
-                ];
-                drawCustomRoute(straightPath, startPt, endPt, approx.distanceText, approx.durationText);
-              });
-          };
-
-          const sCoord = resolveCoords(src);
-          const dCoord = resolveCoords(dst);
-
-          if (sCoord && dCoord) {
-            proceedWithCoords(sCoord, dCoord);
-          } else {
-            // Asynchronously resolve coordinates via Geocoder if user entered a custom town
-            resolveCoordsAsync(src).then((resolvedSrc) => {
-              resolveCoordsAsync(dst).then((resolvedDst) => {
-                if (resolvedSrc && resolvedDst) {
-                  proceedWithCoords(resolvedSrc, resolvedDst);
-                }
-              });
-            });
-          }
-        }
+              const schedule = computeJourneySchedule(distMeters, durSec, departureHour, trafficDensity);
+              drawCustomRoute(gPath, startPt, endPt, schedule, distMeters, durSec);
+            } else {
+              throw new Error('OSRM empty coordinates');
+            }
+          })
+          .catch(() => {
+            if (!isCurrentRequest) return;
+            // Direct geodesic interpolation fallback
+            const approx = computeApproxRoute(startPt, endPt);
+            const schedule = computeJourneySchedule(approx.distanceMeters, approx.durationSeconds, departureHour, trafficDensity);
+            const straightPath = [
+              new google.maps.LatLng(startPt.lat, startPt.lng),
+              new google.maps.LatLng(endPt.lat, endPt.lng),
+            ];
+            drawCustomRoute(straightPath, startPt, endPt, schedule, approx.distanceMeters, approx.durationSeconds);
+          });
       }
     );
-  }, [source, destination, isLoaded]);
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [source, destination, departureHour, travelDate, trafficDensity, isLoaded]);
 
   // Handle City Pan when destination is not specified
   useEffect(() => {
