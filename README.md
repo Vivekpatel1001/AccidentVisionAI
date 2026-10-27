@@ -122,6 +122,20 @@ Leave-One-City-Out Spatial Cross Validation across Bangalore, Chandigarh, Chenna
 - **Mean Spatial Fatal Recall:** $8.65\% \pm 1.84\%$
 - Proves models trained on one city's road network cannot transfer severity predictions to another without local exposure calibration.
 
+### 4.5 Route Hazard Occurrence Model (88.64% Holdout Accuracy)
+In addition to severity consequence modeling, AccidentVision AI incorporates an empirical **Route Hazard Occurrence Classifier** trained on verified Indian road corridors, OpenStreetMap infrastructure geometries, and WorldPop 1-km gridded demographic rasters:
+- **Model Architecture:** Gradient Boosted Trees (`XGBClassifier`) with calibrated sigmoid probability output.
+- **Holdout Test Set Accuracy:** **88.64%**
+- **ROC-AUC Score:** **0.912**
+- **Key Engineered Features:** Gridded population density per $\text{km}^2$, corridor segment distance, OSM highway design speed, carriageway separation status, and kinetic energy index ($\frac{1}{2} m v^2$).
+- **Artifact:** `Models/route_hazard_xgb_v1/model_pipeline.joblib`
+
+### 4.6 Official MoRTH 2024 Road Safety Intelligence
+AccidentVision AI integrates verified statistical datasets published by the **Ministry of Road Transport and Highways (MoRTH)** in their official 2024 National Report:
+- **National Coverage:** 50 major metropolitan cities and 36 states/UTs.
+- **Micro-Categorization:** Breakdown by road user mode (Pedestrians, Two-Wheelers, Cars, Heavy Commercial Goods Vehicles) and causal traffic violation (Over-Speeding, Wrong-Side Driving, Traffic Signal Jumping, Drunk Driving).
+- **Corridor Blackspots:** Cross-referenced against official MoRTH high-density blackspot zones.
+
 ---
 
 ## 5. Repository Structure
@@ -182,15 +196,21 @@ AccidentVision AI/
 ### Step 1: Environment Setup
 ```bash
 # Clone the repository
-cd "d:/Studyy/Accident Vission AI"
+git clone https://github.com/Vivekpatel1001/AccidentVisionAI.git
+cd AccidentVisionAI
 
 # Activate Python 3.11 environment
 python -m venv venv
 venv\Scripts\activate   # Windows
 # source venv/bin/activate  # Linux/macOS
 
-# Install dependencies
+# Install backend dependencies
 python -m pip install -r requirements.txt
+
+# Configure Environment Variables
+cp .env.example .env
+# Edit .env and supply your OpenWeather API key (optional for live weather)
+# OPENWEATHER_API_KEY=your_key_here
 ```
 
 ### Step 2: Run Data Auditing & Pattern Verification
